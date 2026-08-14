@@ -1,0 +1,1578 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trading bot — live</title>
+<style>
+/* ==========================================================================
+   Palette. The series colours are the validated ones and are NOT touched here
+   -- only surfaces, depth and motion. The categorical pair and the ordinal
+   heat ramp were both re-validated against the new dark surface (#14171c)
+   with dataviz/scripts/validate_palette.js before it was adopted.
+   ========================================================================== */
+:root {
+  color-scheme: light;
+  --plane:        #f4f5f7;
+  --surface:      #ffffff;
+  --surface-2:    #fbfbfc;
+  --ink:          #0b0b0b;
+  --ink-2:        #52514e;
+  --muted:        #8b8a86;
+  --grid:         #e6e7ea;
+  --axis:         #c3c2b7;
+  --border:       rgba(11,11,11,0.09);
+  --edge-hi:      rgba(255,255,255,0.9);
+  --shadow:       0 1px 2px rgba(16,20,28,.06), 0 8px 24px -12px rgba(16,20,28,.18);
+  --shadow-lg:    0 2px 4px rgba(16,20,28,.06), 0 24px 48px -20px rgba(16,20,28,.28);
+  --series-1:     #2a78d6;
+  --series-1-dim: #cde2fb;
+  --series-2:     #eb6834;
+  --good:         #0ca30c;
+  --good-text:    #006300;
+  --warning:      #fab219;
+  --serious:      #ec835a;
+  --critical:     #d03b3b;
+  --heat-0:       #86b6ef;
+  --heat-1:       #5598e7;
+  --heat-2:       #2a78d6;
+  --heat-3:       #184f95;
+  --radius:       14px;
+  --radius-sm:    9px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --plane:        #0a0c10;
+    --surface:      #14171c;
+    --surface-2:    #171b21;
+    --ink:          #f2f4f7;
+    --ink-2:        #b6bcc6;
+    --muted:        #7d848f;
+    --grid:         #232830;
+    --axis:         #333a44;
+    --border:       rgba(255,255,255,0.08);
+    --edge-hi:      rgba(255,255,255,0.055);
+    --shadow:       0 1px 2px rgba(0,0,0,.4), 0 10px 30px -14px rgba(0,0,0,.8);
+    --shadow-lg:    0 2px 6px rgba(0,0,0,.45), 0 30px 60px -24px rgba(0,0,0,.9);
+    --series-1:     #3987e5;
+    --series-1-dim: #184f95;
+    --series-2:     #d95926;
+    --good-text:    #0ca30c;
+    --heat-0:       #184f95;
+    --heat-1:       #256abf;
+    --heat-2:       #3987e5;
+    --heat-3:       #86b6ef;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --plane:        #0a0c10;
+  --surface:      #14171c;
+  --surface-2:    #171b21;
+  --ink:          #f2f4f7;
+  --ink-2:        #b6bcc6;
+  --muted:        #7d848f;
+  --grid:         #232830;
+  --axis:         #333a44;
+  --border:       rgba(255,255,255,0.08);
+  --edge-hi:      rgba(255,255,255,0.055);
+  --shadow:       0 1px 2px rgba(0,0,0,.4), 0 10px 30px -14px rgba(0,0,0,.8);
+  --shadow-lg:    0 2px 6px rgba(0,0,0,.45), 0 30px 60px -24px rgba(0,0,0,.9);
+  --series-1:     #3987e5;
+  --series-1-dim: #184f95;
+  --series-2:     #d95926;
+  --good-text:    #0ca30c;
+  --heat-0:       #184f95;
+  --heat-1:       #256abf;
+  --heat-2:       #3987e5;
+  --heat-3:       #86b6ef;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background:
+    radial-gradient(1100px 520px at 12% -8%,
+      color-mix(in srgb, var(--series-1) 9%, transparent), transparent 62%),
+    radial-gradient(900px 440px at 92% -4%,
+      color-mix(in srgb, var(--series-2) 6%, transparent), transparent 58%),
+    var(--plane);
+  background-attachment: fixed;
+  color: var(--ink);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  padding: 18px 20px 40px;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+::selection { background: color-mix(in srgb, var(--series-1) 30%, transparent); }
+
+/* Thin, unobtrusive scrollbars -- several panels scroll. */
+* { scrollbar-width: thin; scrollbar-color: var(--axis) transparent; }
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-thumb {
+  background: var(--axis); border-radius: 6px;
+  border: 2px solid transparent; background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--muted); background-clip: content-box; }
+::-webkit-scrollbar-track { background: transparent; }
+
+h2 {
+  font-size: 11px; font-weight: 650; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--muted); margin: 0 0 12px;
+}
+
+.card {
+  position: relative;
+  background: linear-gradient(180deg, var(--surface-2), var(--surface));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  min-width: 0;
+  box-shadow: var(--shadow);
+  transition: box-shadow .2s ease, transform .2s ease, border-color .2s ease;
+}
+/* Hairline highlight along the top edge -- reads as a lit surface. */
+.card::before {
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 1px;
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: linear-gradient(90deg, transparent, var(--edge-hi) 22%,
+              var(--edge-hi) 78%, transparent);
+  pointer-events: none;
+}
+.grid { display: grid; gap: 14px; }
+.cols-2 { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
+.cols-3 { grid-template-columns: minmax(0,1fr) minmax(0,1fr) minmax(0,1fr); }
+@media (max-width: 1100px) { .cols-2, .cols-3 { grid-template-columns: 1fr; } }
+
+/* ---- header ---- */
+header {
+  display: flex; align-items: flex-start; gap: 20px; flex-wrap: wrap;
+  margin: 4px 0 16px;
+}
+.hero {
+  font-size: clamp(38px, 5.2vw, 58px); font-weight: 680; line-height: 1;
+  letter-spacing: -0.035em; font-variant-numeric: tabular-nums;
+  margin: 6px 0 4px;
+  text-shadow: 0 0 46px color-mix(in srgb, var(--series-1) 26%, transparent);
+}
+.badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+  padding: 4px 9px; border-radius: 999px; border: 1px solid var(--border);
+  color: var(--ink-2); background: color-mix(in srgb, var(--ink) 4%, transparent);
+}
+.badge.paper {
+  color: var(--series-1);
+  border-color: color-mix(in srgb, var(--series-1) 45%, transparent);
+  background: color-mix(in srgb, var(--series-1) 12%, transparent);
+}
+.badge.testnet { background: var(--warning); color: #0b0b0b; border-color: transparent; }
+.badge.live {
+  background: var(--critical); color: #fff; border-color: transparent;
+  box-shadow: 0 0 18px color-mix(in srgb, var(--critical) 55%, transparent);
+}
+.dot {
+  width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 7px;
+  position: relative; top: -1px;
+}
+.dot.on { background: var(--good); animation: pulse 2.4s ease-out infinite; }
+.dot.off { background: var(--critical); }
+@keyframes pulse {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--good) 55%, transparent); }
+  70%  { box-shadow: 0 0 0 9px color-mix(in srgb, var(--good) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--good) 0%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dot.on { animation: none; }
+  html { scroll-behavior: auto; }
+  .bar > i, .mbar > i, .track > .mark { transition: none; }
+}
+.spacer { flex: 1; }
+.sub { color: var(--muted); font-size: 12px; }
+
+/* ---- stat tiles ---- */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px,1fr)); gap: 14px; }
+.tile { padding: 14px 16px; }
+.tile .label {
+  font-size: 10px; color: var(--muted); text-transform: uppercase;
+  letter-spacing: .085em; font-weight: 650;
+}
+.tile .value {
+  font-size: 25px; font-weight: 640; margin-top: 5px; letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.tile:hover { transform: translateY(-1px); box-shadow: var(--shadow-lg); }
+
+.pos { color: var(--good-text); }
+.neg { color: var(--critical); }
+.num { font-variant-numeric: tabular-nums; }
+
+/* ---- tables ---- */
+table { width: 100%; border-collapse: separate; border-spacing: 0;
+        font-variant-numeric: tabular-nums; }
+th {
+  position: sticky; top: 0; z-index: 2;
+  text-align: right; font-size: 10px; font-weight: 650; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .07em;
+  padding: 8px; white-space: nowrap;
+  background: var(--surface);
+  border-bottom: 1px solid var(--grid);
+}
+th:first-child, td:first-child { text-align: left; }
+td {
+  padding: 7px 8px; text-align: right; border-bottom: 1px solid var(--grid);
+  white-space: nowrap; font-size: 13px;
+}
+tbody tr { transition: background .12s ease; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: color-mix(in srgb, var(--series-1) 8%, transparent); }
+tbody tr:hover td:first-child { box-shadow: inset 2px 0 0 var(--series-1); }
+.scroll { max-height: 340px; overflow: auto; margin: 0 -4px; padding: 0 4px; }
+.scroll > table { min-width: 640px; }
+.sym { font-weight: 640; letter-spacing: -0.01em; }
+.empty { color: var(--muted); padding: 26px 4px; text-align: center; font-size: 13px; }
+
+/* ---- bars ---- */
+.bar {
+  position: relative; height: 7px; border-radius: 4px;
+  background: color-mix(in srgb, var(--grid) 75%, transparent);
+  overflow: hidden; min-width: 62px;
+}
+.bar > i {
+  position: absolute; inset: 0 auto 0 0; border-radius: 4px; display: block;
+  transition: width .35s cubic-bezier(.22,.9,.3,1);
+}
+/* Stop on the left, target on the right, marker where price sits. The tinted
+   ends say which direction is which without needing a legend. */
+.track {
+  position: relative; height: 9px; border-radius: 5px; min-width: 96px;
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--critical) 26%, transparent),
+    color-mix(in srgb, var(--grid) 80%, transparent) 45%,
+    color-mix(in srgb, var(--good) 26%, transparent));
+}
+.track > .fill { display: none; }
+.track > .mark {
+  position: absolute; top: -3px; width: 3px; height: 15px; border-radius: 2px;
+  background: var(--ink); box-shadow: 0 0 0 2px var(--surface);
+  transition: left .35s cubic-bezier(.22,.9,.3,1);
+}
+
+/* ---- chips ---- */
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chip {
+  font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 999px;
+  border: 1px solid var(--border); color: var(--ink-2); white-space: nowrap;
+}
+.chip.fail {
+  border-color: color-mix(in srgb, var(--critical) 40%, transparent);
+  color: var(--critical);
+  background: color-mix(in srgb, var(--critical) 9%, transparent);
+}
+.chip.pass {
+  border-color: color-mix(in srgb, var(--good) 40%, transparent);
+  color: var(--good-text);
+  background: color-mix(in srgb, var(--good) 13%, transparent);
+}
+
+/* ---- chart ---- */
+.chartwrap { position: relative; }
+canvas { width: 100%; display: block; height: var(--chart-h, 230px); }
+
+/* Drag handle under the chart. A grabbable strip rather than a corner: the
+   height is the only dimension worth changing, since the width is the card. */
+.resize {
+  height: 14px; margin: 2px -18px -6px; cursor: ns-resize;
+  display: flex; align-items: center; justify-content: center;
+  touch-action: none;
+}
+.resize::after {
+  content: ""; width: 46px; height: 4px; border-radius: 2px;
+  background: var(--grid); transition: background .15s ease, width .15s ease;
+}
+.resize:hover::after, .resize.dragging::after {
+  background: var(--series-1); width: 74px;
+}
+
+/* Collapsing. Everything after the heading folds away; the heading keeps its
+   own click target so the whole card is not a toggle by accident. */
+.card.collapsed > *:not(h2) { display: none; }
+.card.collapsed { padding-bottom: 12px; }
+h2 .fold {
+  float: right; border: none; background: none; color: var(--muted);
+  font-size: 13px; line-height: 1; padding: 0 2px; cursor: pointer;
+  transition: transform .18s ease, color .15s ease;
+}
+h2 .fold:hover { color: var(--series-1); background: none; }
+.card.collapsed h2 .fold { transform: rotate(-90deg); }
+
+/* Compact density: the same information, less air, for a small screen. */
+body.compact { padding: 10px 12px 24px; font-size: 13px; }
+body.compact .card { padding: 11px 13px; }
+body.compact .tile .value { font-size: 20px; }
+body.compact td, body.compact th { padding: 4px 6px; font-size: 12px; }
+body.compact .hero { font-size: clamp(30px, 4vw, 42px); }
+body.compact .grid { gap: 10px; }
+
+.rangebtns { display: inline-flex; gap: 4px; margin-left: auto; }
+.rangebtns button { padding: 3px 9px; font-size: 11px; }
+
+kbd {
+  font: 11px ui-monospace, Consolas, monospace; padding: 1px 5px;
+  border: 1px solid var(--border); border-radius: 4px;
+  background: color-mix(in srgb, var(--ink) 6%, transparent); color: var(--ink-2);
+}
+.tooltip {
+  position: absolute; pointer-events: none; opacity: 0;
+  transition: opacity .1s ease;
+  background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 8px 11px; font-size: 12px; box-shadow: var(--shadow-lg);
+  font-variant-numeric: tabular-nums; white-space: nowrap; z-index: 5;
+}
+.legendline {
+  display: flex; gap: 16px; font-size: 12px; color: var(--muted);
+  margin-top: 10px; flex-wrap: wrap; align-items: center;
+}
+.swatch {
+  display: inline-block; width: 16px; height: 3px; border-radius: 2px;
+  vertical-align: middle; margin-right: 6px;
+}
+
+/* ---- log ---- */
+.log {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 11.5px; max-height: 268px; overflow: auto;
+}
+.log div {
+  padding: 3px 0; border-bottom: 1px solid var(--grid); display: flex; gap: 10px;
+}
+.log div:last-child { border-bottom: none; }
+.log .t { color: var(--muted); flex: none; }
+.log .WARNING { color: var(--serious); }
+.log .ERROR { color: var(--critical); }
+.rejrow {
+  display: flex; justify-content: space-between; gap: 10px;
+  padding: 6px 0; border-bottom: 1px solid var(--grid); font-size: 13px;
+}
+.rejrow:last-child { border-bottom: none; }
+
+/* ---- explainer + status ---- */
+#explain {
+  border-left: 3px solid var(--series-1);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--series-1) 7%, transparent), transparent 38%),
+    linear-gradient(180deg, var(--surface-2), var(--surface));
+}
+#explain p { margin: 0 0 11px; max-width: 78ch; line-height: 1.65; color: var(--ink-2); }
+#explain p:last-of-type { margin-bottom: 0; }
+/* The caveat is the paragraph a reader is most likely to skip and most needs.
+   Marked, not shouted: a rule in the warning hue, no fill, no icon. */
+#explain p.caveat {
+  border-left: 2px solid var(--serious);
+  padding: 2px 0 2px 13px;
+  margin-left: -1px;
+}
+/* The measured numbers, read from disk rather than written into the page.
+   Prose about a result goes stale silently; this cannot. */
+.evrow { display: flex; flex-wrap: wrap; gap: 18px 26px; align-items: baseline;
+         margin-bottom: 10px; }
+.evrow .ev { display: flex; flex-direction: column; gap: 2px; }
+.evrow .ev-k { font-size: 10px; letter-spacing: .07em; text-transform: uppercase;
+               color: var(--muted); }
+.evrow .ev-v { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+               font-size: 15px; font-weight: 600; color: var(--ink); }
+.evrow .ev-lab { font-size: 11px; font-weight: 650; color: var(--ink-2);
+                 letter-spacing: .04em; text-transform: uppercase;
+                 min-width: 92px; }
+.evnote { font-size: 12px; color: var(--muted); margin: 0; max-width: 78ch;
+          line-height: 1.6; }
+#explain p.caveat .mono {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 12px; color: var(--muted); white-space: nowrap;
+}
+#explain strong { font-weight: 650; color: var(--ink); }
+.plain {
+  font-size: 15px; line-height: 1.55; margin: 8px 0 0; max-width: 82ch;
+  color: var(--ink-2);
+}
+.warnbar {
+  background: color-mix(in srgb, var(--warning) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warning) 45%, transparent);
+  border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 14px;
+  font-size: 13px; color: var(--ink);
+}
+th[title], td[title] { cursor: help; }
+
+/* ---- money breakdown ---- */
+.money { display: grid; grid-template-columns: auto 1fr auto; gap: 9px 14px; align-items: center; }
+.money .k { color: var(--ink-2); font-size: 13px; white-space: nowrap; }
+.money .v { font-variant-numeric: tabular-nums; font-weight: 650; white-space: nowrap; font-size: 15px; }
+.mbar {
+  height: 11px; border-radius: 6px; min-width: 60px; overflow: hidden;
+  background: color-mix(in srgb, var(--grid) 75%, transparent);
+}
+.mbar > i {
+  display: block; height: 100%; border-radius: 6px;
+  transition: width .45s cubic-bezier(.22,.9,.3,1);
+}
+
+/* ---- controls ---- */
+.controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+input[type="search"] {
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+  color: var(--ink); border: 1px solid var(--border);
+  border-radius: 999px; padding: 6px 13px; font: inherit; font-size: 13px; min-width: 170px;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+input[type="search"]:focus {
+  outline: none; border-color: var(--series-1);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--series-1) 18%, transparent);
+}
+input[type="search"]::placeholder { color: var(--muted); }
+button {
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+  color: var(--ink-2); border: 1px solid var(--border);
+  border-radius: 999px; padding: 5px 12px; font: inherit; font-size: 12px;
+  cursor: pointer; transition: all .15s ease;
+}
+button:hover {
+  border-color: var(--series-1); color: var(--series-1);
+  background: color-mix(in srgb, var(--series-1) 10%, transparent);
+}
+button:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; }
+button[aria-pressed="true"] {
+  border-color: var(--series-1); color: var(--series-1);
+  background: color-mix(in srgb, var(--series-1) 14%, transparent);
+}
+label.check { display: inline-flex; align-items: center; gap: 6px; font-size: 12px;
+              color: var(--ink-2); cursor: pointer; }
+.spark { display: block; margin-left: auto; }
+.paused .hero { opacity: .5; }
+/* An unmistakable marker: a frozen page that looks live is a trap. */
+.paused::after {
+  content: "PAUSED"; position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+  background: var(--warning); color: #0b0b0b; font-size: 10.5px; font-weight: 750;
+  letter-spacing: .1em; padding: 4px 12px; border-radius: 999px; z-index: 50;
+}
+</style>
+</head>
+<body>
+
+<div class="warnbar">
+  <strong>Pretend money.</strong> This robot places no real orders and holds no real
+  coins. It reads live prices and simulates what would have happened.
+</div>
+
+<div class="card" id="explain" style="margin-bottom:12px">
+  <h2 style="display:flex;justify-content:space-between;align-items:center">
+    <span>What am I looking at?</span>
+    <button id="hideExplain" style="text-transform:none;letter-spacing:0">hide</button>
+  </h2>
+  <p>
+    <span id="explainDir"></span>A trading robot watching <strong>50 crypto coins</strong>, one price update a
+    minute. When a coin drops much faster than that particular coin normally
+    moves, <em>and</em> unusually many people are trading it, the robot buys —
+    betting the fall went too far and the price will bounce back.
+  </p>
+  <p>
+    Every buy and every sell pays a fee to the exchange. Measured over months of
+    real prices, the bounce is <strong>too small to pay for the fees</strong> —
+    the fees are about <strong>four times bigger</strong>. So this loses money on
+    purpose-built, carefully tested rules. That is the finding, not a bug.
+  </p>
+  <p class="caveat">
+    <strong>And the bounce itself may not be real.</strong> It came out positive
+    in every month tested, always by about the same tiny amount. But the entry
+    rule fires on twenty coins at once whenever the whole market dips, so those
+    twenty results are really closer to <em>one</em> result. Counting them
+    properly, the effect is <strong>no longer distinguishable from luck</strong>.
+    Consistent, small, and unproven — three separate things, all true at the
+    same time.
+  </p>
+  <p>
+    The chart shows it directly: the <span style="color:var(--series-1)">blue
+    line</span> is the account, the <span style="color:var(--series-2)">orange
+    line</span> is what it would be worth <em>if trading were free</em>. The gap
+    between them is the fee bill.
+  </p>
+  <p>
+    The big table at the bottom lists all 50 coins and, for each one,
+    <strong>why the robot is not buying it right now</strong>. Almost always the
+    answer is "nothing unusual is happening" — which is what should happen.
+    Hover any column heading to see what it means.
+  </p>
+</div>
+
+<!-- Outside the explainer on purpose. The explainer is a beginner's intro and
+     is dismissible; these are the measured results, and hiding them behind the
+     same button meant a reader who clicked "hide" once never saw them again. -->
+<div class="card" id="evidence" hidden style="margin-bottom:12px">
+  <h2>What the testing actually measured</h2>
+  <div class="evrow" id="evMain"></div>
+  <div class="evrow" id="evEq" hidden></div>
+  <div class="evrow" id="evLadder" hidden></div>
+  <div class="evrow" id="evLong" hidden></div>
+  <div class="evrow" id="evAlloc" hidden></div>
+  <p class="evnote" id="evNote"></p>
+</div>
+
+<header>
+  <div>
+    <div class="sub"><span id="conn" class="dot off"></span><span id="connText">connecting…</span></div>
+    <div class="hero num" id="equity">—</div>
+    <div class="sub">account value · <span id="ret">—</span> since start</div>
+    <p class="plain" id="plainstatus">Starting up…</p>
+  </div>
+  <div class="spacer"></div>
+  <div style="text-align:right">
+    <span class="badge" id="mode">—</span>
+    <span class="badge" id="mlbadge">ML off</span>
+    <span class="badge" id="dirbadge">—</span>
+    <span class="badge" id="streambadge">stream —</span>
+    <div class="sub" style="margin-top:6px">
+      <span id="symcount">0</span> symbols · up <span id="uptime">0m</span>
+      · <button id="pause" aria-pressed="false" title="Freeze the page without stopping the bot">pause</button>
+      <button id="theme" title="Cycle system / light / dark">theme: system</button>
+      <button id="density" title="Compact layout">density</button>
+      <button id="keys" title="Keyboard shortcuts">?</button>
+    </div>
+  </div>
+</header>
+
+<div class="grid" style="margin-bottom:12px">
+  <div class="tiles">
+    <div class="card tile" title="Profit or loss so far today. The bar below shows how much of the daily loss limit has been used up — at 100% the robot stops trading until tomorrow."><div class="label">Today</div><div class="value num" id="daypnl">—</div><div class="bar" style="margin-top:6px"><i id="daybar"></i></div></div>
+    <div class="card tile" title="Coins held right now, out of the maximum allowed at once."><div class="label">Coins held</div><div class="value num" id="openct">—</div></div>
+    <div class="card tile" title="Completed round trips: bought and then sold again."><div class="label">Trades done</div><div class="value num" id="ntrades">—</div></div>
+    <div class="card tile" title="Share of trades that ended in profit. Careful: a high win rate means nothing on its own — winning often while losing big is still losing."><div class="label">Trades won</div><div class="value num" id="winrate">—</div></div>
+    <div class="card tile" title="Total profit or loss after fees. This is the number that actually matters."><div class="label">Profit after fees</div><div class="value num" id="netpnl">—</div></div>
+    <div class="card tile" title="Everything handed to the exchange. Compare it with the profit before fees in the panel below."><div class="label">Paid in fees</div><div class="value num" id="fees">—</div></div>
+    <div class="card tile" title="How many times a coin met every buy condition. Some are skipped anyway — no free slot, cooldown, or the daily limit."><div class="label">Buy triggers</div><div class="value num" id="nsignals">—</div></div>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:12px">
+  <h2>Account value</h2>
+  <div class="chartwrap">
+    <canvas id="chart"></canvas>
+    <div class="tooltip" id="tip"></div>
+  </div>
+  <div class="resize" id="chartResize" role="separator" aria-orientation="horizontal"
+       title="Drag to resize the chart"></div>
+  <div class="legendline">
+    <span><i class="swatch" style="background:var(--series-1)"></i>account value</span>
+    <span><i class="swatch" style="background:var(--series-2)"></i>if trading were free</span>
+    <span style="color:var(--muted)"><i class="swatch" style="background:var(--axis)"></i>starting equity</span>
+    <span class="spacer"></span>
+    <span id="chartrange"></span>
+    <span class="rangebtns" id="rangebtns"></span>
+  </div>
+  <p class="sub" style="margin:8px 0 0">
+    The gap between the two lines is the fee bill. On every window measured it
+    is larger than everything the strategy earns.
+  </p>
+</div>
+
+<div class="grid cols-2" style="margin-bottom:12px">
+  <div class="card">
+    <h2 title="Money made before fees, money paid in fees, and what is left. All three bars share one scale so they are directly comparable.">Where the money went</h2>
+    <div class="money" id="money"><div class="k">no closed trades yet</div><div></div><div></div></div>
+    <p class="sub" id="moneynote" style="margin:10px 0 0"></p>
+  </div>
+  <div class="card">
+    <h2 title="Why each finished trade was closed: profit target, safety exit, or the time limit.">How trades ended</h2>
+    <div id="exits"><div class="empty">no closed trades yet</div></div>
+  </div>
+</div>
+
+<div class="grid cols-2" style="margin-bottom:12px">
+  <div class="card">
+    <h2 title="Coins the robot is holding right now. The bar shows where the price sits between the safety exit (left) and the profit target (right).">Coins held right now</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr>
+          <th>Symbol</th><th title="Profit or loss if it were sold right now, before fees">P&amp;L</th><th>Entry</th><th>Price</th>
+          <th title="Left edge = the safety exit, right edge = the profit target. The marker is where the price is now.">Safety exit → Target</th><th title="How long it has been held, and the maximum before it is sold regardless">Held for</th>
+        </tr></thead>
+        <tbody id="positions"><tr><td colspan="6" class="empty">no open positions</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card">
+    <h2 title="The last completed round trips, newest first.">Finished trades</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr>
+          <th>Symbol</th><th title="Result of the trade after fees">Result</th><th>Net</th><th title="Why it was closed">Closed because</th><th>Held</th><th>Closed</th>
+        </tr></thead>
+        <tbody id="trades"><tr><td colspan="6" class="empty">no trades yet</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:12px">
+  <h2 title="Every coin being watched, sorted by how close it is to triggering a buy.">All 50 coins — and why each one is not being bought</h2>
+  <div class="controls">
+    <input type="search" id="filter" placeholder="filter symbols…" autocomplete="off">
+    <label class="check"><input type="checkbox" id="onlyclose"> only heat ≥ 0.66</label>
+    <label class="check"><input type="checkbox" id="onlyready"> only all-gates-open</label>
+    <span class="sub" id="wcount"></span>
+  </div>
+  <div class="scroll" style="max-height:460px">
+    <table>
+      <thead><tr>
+        <th title="The coin, paired against the USDT stablecoin">Coin</th>
+        <th title="Its price over the last 40 minutes — shape only, no scale">Recent shape</th>
+        <th title="Latest price in USDT">Price</th>
+        <th id="hMove" title="How far the price moved in the last 3 minutes">Move 3m</th>
+        <th title="How unusual that move is FOR THIS COIN. 1 = an ordinary minute. 3+ = genuinely rare. Big coins and tiny coins wobble by very different amounts, so a raw percentage would not be comparable.">Unusual?</th>
+        <th title="How much more trading than normal. 3x means three times this coin's usual volume. A price move without volume behind it is usually noise.">Traded</th>
+        <th id="hLevel" title="How much further the price has to move to reach the level that would trigger a buy. 'above' means it is already through it.">To trigger</th>
+        <th title="How far the price is from its own recent average. A move already far from the mean has usually spent itself.">Stretch</th>
+        <th title="Gap between the buy price and the sell price, in hundredths of a percent. You pay about half of it every single time you trade — this is the cost that eats the strategy.">Cost</th>
+        <th title="How close this coin is to meeting all the buy conditions. Full bar = about to trigger.">Closeness</th>
+        <th title="The single condition stopping the robot from buying this coin right now">Why not buying</th>
+      </tr></thead>
+      <tbody id="watchlist"><tr><td colspan="11" class="empty">waiting for the first closed candle…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card" id="keyhelp" style="display:none;margin-bottom:12px">
+  <h2>Keyboard</h2>
+  <div class="legendline">
+    <span><kbd>/</kbd> filter coins</span>
+    <span><kbd>p</kbd> pause</span>
+    <span><kbd>t</kbd> theme</span>
+    <span><kbd>d</kbd> density</span>
+    <span><kbd>+</kbd> <kbd>-</kbd> chart height</span>
+    <span><kbd>?</kbd> this panel</span>
+    <span style="color:var(--muted)">the chart handle also takes arrow keys</span>
+  </div>
+</div>
+
+<div class="grid cols-3">
+  <div class="card">
+    <h2 title="Moments when a coin met every buy condition.">Buy triggers</h2>
+    <div class="scroll" style="max-height:240px">
+      <table>
+        <thead><tr><th>Symbol</th><th>Ret</th><th>Z</th><th>P(win)</th><th>Time</th></tr></thead>
+        <tbody id="signals"><tr><td colspan="5" class="empty">none yet</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card">
+    <h2 title="Running tally of the reasons coins were skipped. Almost all of it is &quot;nothing unusual happened&quot;, which is normal.">Reasons for not buying, counted</h2>
+    <div id="rejections" class="scroll" style="max-height:240px"><div class="empty">nothing yet</div></div>
+  </div>
+  <div class="card">
+    <h2 title="Raw messages from the robot, newest first.">Activity log</h2>
+    <div class="log" id="log"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const fmt = (v, d = 2) => (v === null || v === undefined || Number.isNaN(v)) ? "—" : Number(v).toFixed(d);
+const money = (v) => (v === null || v === undefined) ? "—" : Number(v).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const signed = (v, d = 2, suffix = "%") => (v >= 0 ? "+" : "") + fmt(v, d) + suffix;
+const cls = (v) => v > 0 ? "pos" : (v < 0 ? "neg" : "");
+const price = (v) => v >= 100 ? fmt(v, 2) : v >= 1 ? fmt(v, 4) : fmt(v, 6);
+
+// Human labels for gate keys. The raw key is the reason string the bot logs,
+// which is precise but not friendly.
+const GATE_LABEL = {
+  warming_up: "warming up",
+  move_too_small: "move too small",
+  move_within_normal_range: "not unusual (z)",
+  no_volume_confirmation: "no volume",
+  not_a_breakout: "no breakout",
+  overextended: "overextended",
+  spread_too_wide: "spread",
+  ml_filter: "model score",
+  max_positions: "max positions",
+  cooldown: "cooldown",
+  daily_loss_limit: "daily loss limit",
+  size_too_small: "size too small",
+  no_volatility_estimate: "no volatility",
+  spread_too_tight: "spread too tight",
+  outside_trading_hours: "outside trading hours",
+  // exit reasons
+  stop_loss: "stopped out",
+  trailing_stop: "trailing stop",
+  take_profit: "target hit",
+  max_hold: "time stop",
+  end_of_data: "end of data",
+  shutdown: "closed at shutdown"
+};
+const label = (k) => GATE_LABEL[k] || k;
+
+// One plain sentence per reason, shown on hover. Someone who has never traded
+// should be able to read the watchlist without a glossary.
+const WHY = {
+  warming_up: "Not enough price history collected for this coin yet.",
+  move_too_small: "The price has barely moved. Nothing to react to.",
+  move_within_normal_range: "It moved, but no more than this coin normally does in a few minutes.",
+  no_volume_confirmation: "The price moved without unusual trading behind it — usually noise, not a real move.",
+  not_a_breakout: "The price has not passed the level that would count as a genuine break.",
+  overextended: "It has already run so far from its average that the move looks spent.",
+  spread_too_wide: "Buying and selling this coin costs too much to be worth it.",
+  spread_too_tight: "Outside the spread band this run is restricted to.",
+  outside_trading_hours: "The robot only trades during certain hours of the day.",
+  no_volatility_estimate: "Cannot yet measure how much this coin normally moves.",
+  ml_filter: "The model scored this setup below the cut-off.",
+  max_positions: "The robot already holds as many coins as it is allowed to.",
+  cooldown: "Just traded this coin — waiting before touching it again.",
+  daily_loss_limit: "Lost too much today. No new trades until tomorrow.",
+  size_too_small: "The position would be too small to be worth placing.",
+  stop_loss: "Price fell to the safety exit and the position was sold at a loss.",
+  trailing_stop: "Price rose, then fell back by more than the allowed amount, so it was sold.",
+  take_profit: "Price reached the profit target and the position was sold.",
+  max_hold: "Neither the target nor the safety exit was reached in time, so it was sold anyway.",
+  end_of_data: "Still open when the test data ran out.",
+  shutdown: "Still open when the robot was stopped."
+};
+const why = (k) => WHY[k] || "";
+// First clause only, lowercased, for embedding mid-sentence. Dropping the
+// whole string in produced "held back because the price has barely moved.
+// nothing to react to." -- two sentences welded together.
+const whyClause = (k) => {
+  const s = why(k).split(".")[0];
+  return s ? s.charAt(0).toLowerCase() + s.slice(1) : "of an unnamed condition";
+};
+
+let latest = null;
+
+// ---------------------------------------------------------------- rendering
+let heroShown = null, heroTimer = null;
+function tweenHero(target) {
+  if (heroShown === null || Math.abs(target - heroShown) < 0.005) {
+    heroShown = target;
+    $("equity").textContent = money(target);
+    return;
+  }
+  clearInterval(heroTimer);
+  const from = heroShown, start = performance.now(), ms = 420;
+  heroTimer = setInterval(() => {
+    const k = Math.min(1, (performance.now() - start) / ms);
+    // ease-out cubic: fast then settling, so the eye can follow the change
+    heroShown = from + (target - from) * (1 - Math.pow(1 - k, 3));
+    $("equity").textContent = money(heroShown);
+    if (k >= 1) { clearInterval(heroTimer); heroShown = target; }
+  }, 16);
+}
+
+function renderHeader(s) {
+  tweenHero(s.equity);
+  const r = $("ret");
+  r.textContent = signed(s.return_pct);
+  r.className = cls(s.return_pct);
+  $("mode").textContent = s.mode;
+  $("mode").className = "badge " + s.mode;
+  $("mlbadge").textContent = s.ml.enabled ? `ML on · p ≥ ${fmt(s.ml.threshold, 2)}` : "ML off";
+
+  // Reversal flips the sign of every move figure: a positive "move" is a FALL.
+  // Unlabelled, the watchlist reads as the exact opposite of what it means.
+  const reversal = s.direction === "reversal";
+  $("dirbadge").textContent = `${s.direction} ${s.timeframe}`;
+  // The tab title has to follow the strategy; it said "Momentum bot" while the
+  // bot was running reversal.
+  const wanted = `${reversal ? "Dip-buying" : "Breakout"} bot — ${fmt(s.equity, 2)}`;
+  if (document.title !== wanted) document.title = wanted;
+  $("dirbadge").title = reversal
+    ? "Buying capitulation: a positive Move 3m means the price FELL that much"
+    : "Buying breakouts: a positive Move 3m means the price ROSE that much";
+  $("hMove").textContent = reversal ? "Drop 3m" : "Rise 3m";
+  const ed = $("explainDir");
+  if (ed) ed.innerHTML = reversal ? "" :
+    '<strong style="color:var(--serious)">Note: running in breakout mode, ' +
+    'so the description below is inverted — it buys sharp RISES, not falls.</strong><br>';
+  $("hLevel").textContent = reversal ? "To low" : "To high";
+
+  // Stream health: a bot quietly trading on a holed series looks identical to
+  // a healthy one from the numbers alone, so it gets its own indicator.
+  const st = s.stream || {};
+  const sb = $("streambadge");
+  if (st.symbols) {
+    sb.textContent = st.stale
+      ? `⚠ ${st.stale} stale`
+      : `stream ok · ${fmt(st.worst_age_s, 0)}s`;
+    sb.style.borderColor = st.stale ? "var(--critical)" : "";
+    sb.style.color = st.stale ? "var(--critical)" : "";
+    sb.title = `worst gap ${fmt(st.worst_age_s, 0)}s · ${st.repairs} repair(s) so far`;
+  } else {
+    sb.textContent = "stream —";
+  }
+
+  $("symcount").textContent = s.symbol_count;
+  const m = Math.floor(s.uptime_s / 60);
+  $("uptime").textContent = m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`;
+
+  const d = $("daypnl");
+  d.textContent = s.halted ? signed(s.day_pnl_pct) + " ⛔" : signed(s.day_pnl_pct);
+  d.className = "value num " + cls(s.day_pnl_pct);
+  // How much of the daily loss budget is used up.
+  const used = Math.max(0, Math.min(1, -s.day_pnl_pct / s.daily_limit_pct));
+  const bar = $("daybar");
+  bar.style.width = (used * 100).toFixed(1) + "%";
+  bar.style.background = used > 0.66 ? "var(--critical)" : used > 0.33 ? "var(--serious)" : "var(--good)";
+
+  $("openct").textContent = `${s.positions.length}/${s.max_positions}`;
+  $("ntrades").textContent = s.stats.trades;
+  $("winrate").textContent = s.stats.trades ? fmt(s.stats.win_rate, 1) + "%" : "—";
+  const np = $("netpnl");
+  np.textContent = s.stats.trades ? signed(s.stats.net_pnl, 2, "") : "—";
+  np.className = "value num " + cls(s.stats.net_pnl);
+  // fees_paid, not stats.fees: it includes the entry fee already handed over
+  // on positions that are still open, which stats.fees (closed trades only)
+  // silently omits.
+  $("fees").textContent = "-" + fmt(s.stats.fees_paid, 2);
+  $("nsignals").textContent = s.stats.signals;
+}
+
+function renderPositions(rows) {
+  const body = $("positions");
+  if (!rows.length) { body.innerHTML = '<tr><td colspan="6" class="empty">no open positions</td></tr>'; return; }
+  body.innerHTML = rows.map(p => `
+    <tr>
+      <td class="sym">${p.symbol}${p.armed ? ' <span class="chip pass">trailing</span>' : ''}</td>
+      <td class="${cls(p.unreal_pct)}">${signed(p.unreal_pct)}</td>
+      <td>${price(p.entry)}</td>
+      <td>${price(p.price)}</td>
+      <td>
+        <div class="track" title="stop ${price(p.stop)} · target ${price(p.target)}">
+          <div class="fill" style="width:${(p.progress * 100).toFixed(1)}%"></div>
+          <div class="mark" style="left:calc(${(p.progress * 100).toFixed(1)}% - 1.5px)"></div>
+        </div>
+      </td>
+      <td>${fmt(p.age_min, 0)}/${p.max_hold}m</td>
+    </tr>`).join("");
+}
+
+function renderTrades(rows) {
+  const body = $("trades");
+  if (!rows.length) { body.innerHTML = '<tr><td colspan="6" class="empty">no trades yet</td></tr>'; return; }
+  body.innerHTML = rows.map(t => `
+    <tr>
+      <td class="sym">${t.symbol}</td>
+      <td class="${cls(t.net_pct)}">${signed(t.net_pct)}</td>
+      <td class="${cls(t.net_pnl)}">${signed(t.net_pnl, 2, "")}</td>
+      <td title="${why(t.reason)}">${label(t.reason)}</td>
+      <td>${fmt(t.hold, 0)}m</td>
+      <td>${t.exit_time}</td>
+    </tr>`).join("");
+}
+
+function heatColor(h) {
+  // Sequential blue ramp, one hue, four ordinal steps. Magnitude, not identity.
+  // Kept as discrete steps rather than a continuous blend: four distinguishable
+  // levels are readable, a smooth gradient across rows is not.
+  const step = h >= 0.9 ? "--heat-3" : h >= 0.66 ? "--heat-2"
+             : h >= 0.33 ? "--heat-1" : "--heat-0";
+  return `linear-gradient(90deg, color-mix(in srgb, var(${step}) 55%, transparent), var(${step}))`;
+}
+
+// Inline SVG sparkline. Cheaper than a canvas per row and it scales with the
+// table; the shape is what matters, so there are no axes or labels.
+function sparkline(values) {
+  if (!values || values.length < 2) return "";
+  const w = 76, h = 20, pad = 2;
+  const lo = Math.min(...values), hi = Math.max(...values);
+  const span = (hi - lo) || 1;
+  const pts = values.map((v, i) => {
+    const x = pad + (i / (values.length - 1)) * (w - pad * 2);
+    const y = pad + (1 - (v - lo) / span) * (h - pad * 2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  const last = pts[pts.length - 1].split(",");
+  return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true">
+    <polyline fill="none" stroke="var(--series-1)" stroke-width="1.5"
+      stroke-linejoin="round" stroke-linecap="round" points="${pts.join(" ")}"/>
+    <circle cx="${last[0]}" cy="${last[1]}" r="2" fill="var(--series-1)"/>
+  </svg>`;
+}
+
+function visibleWatchlist(rows) {
+  const q = $("filter").value.trim().toUpperCase();
+  return rows.filter(w =>
+    (!q || w.symbol.includes(q)) &&
+    (!$("onlyclose").checked || w.heat >= 0.66) &&
+    (!$("onlyready").checked || !w.blocking)
+  );
+}
+
+function renderWatchlist(all) {
+  const body = $("watchlist");
+  const rows = visibleWatchlist(all);
+  $("wcount").textContent = all.length
+    ? `${rows.length} of ${all.length} shown`
+    : "";
+  if (!all.length) { body.innerHTML = '<tr><td colspan="11" class="empty">waiting for the first closed candle…</td></tr>'; return; }
+  if (!rows.length) { body.innerHTML = '<tr><td colspan="11" class="empty">nothing matches those filters</td></tr>'; return; }
+  body.innerHTML = rows.map(w => {
+    return `
+    <tr title="${w.bars} bars of history">
+      <td class="sym">${w.symbol}${w.open ? ' <span class="chip pass">in trade</span>' : ''}</td>
+      <td>${sparkline(w.spark)}</td>
+      <td>${price(w.price)}</td>
+      <td class="${cls(w.ret)}">${signed(w.ret)}</td>
+      <td>${fmt(w.z, 1)}</td>
+      <td>${fmt(w.volx, 1)}×</td>
+      <td class="${w.gap <= 0 ? "pos" : ""}">${w.gap <= 0 ? "above" : fmt(w.gap, 2) + "%"}</td>
+      <td>${signed(w.ext)}</td>
+      <td>${fmt(w.spread, 1)}</td>
+      <td><div class="bar" title="${(w.heat * 100).toFixed(0)}% of the way to a signal"><i style="width:${(w.heat * 100).toFixed(1)}%;background:${heatColor(w.heat)}"></i></div></td>
+      <td style="text-align:left"><div class="chips">${w.blocking
+          ? `<span class="chip fail" title="${why(w.blocking)}">✗ ${label(w.blocking)}</span>`
+          : '<span class="chip pass" title="Every condition is met — this one could trigger a buy.">✓ ready to buy</span>'}</div></td>
+    </tr>`;
+  }).join("");
+}
+
+function renderSignals(rows) {
+  const body = $("signals");
+  if (!rows.length) { body.innerHTML = '<tr><td colspan="5" class="empty">none yet</td></tr>'; return; }
+  body.innerHTML = rows.map(s => `
+    <tr>
+      <td class="sym">${s.symbol}</td>
+      <td class="${cls(s.ret)}">${signed(s.ret)}</td>
+      <td>${fmt(s.z, 1)}</td>
+      <td>${s.probability === null || s.probability === undefined ? "—" : fmt(s.probability, 2)}</td>
+      <td>${s.time}</td>
+    </tr>`).join("");
+}
+
+function renderRejections(obj) {
+  const entries = Object.entries(obj);
+  const el = $("rejections");
+  if (!entries.length) { el.innerHTML = '<div class="empty">nothing yet</div>'; return; }
+  const total = entries.reduce((a, [, v]) => a + v, 0);
+  el.innerHTML = entries.map(([k, v]) => `
+    <div class="rejrow">
+      <span title="${why(k)}">${label(k)}</span>
+      <span class="num" style="color:var(--muted)">${v.toLocaleString()} · ${((v / total) * 100).toFixed(1)}%</span>
+    </div>`).join("");
+}
+
+// One sentence, in ordinary words, saying what the robot is doing right now.
+// A newcomer should be able to read this and nothing else and still know
+// whether anything is happening.
+function plainStatus(s) {
+  const open = s.positions.length;
+  const held = s.watchlist.length;
+  if (!held) return "Collecting the first minute of prices before it can judge anything.";
+
+  if (open) {
+    const best = s.positions[0], worst = s.positions[s.positions.length - 1];
+    const one = open === 1;
+    return `Holding ${open} coin${one ? "" : "s"} right now` +
+      (one ? ` — ${best.symbol}, currently ${signed(best.unreal_pct)}.`
+           : ` — best ${best.symbol} ${signed(best.unreal_pct)}, worst ${worst.symbol} ${signed(worst.unreal_pct)}.`) +
+      ` Each one sells automatically at its target, its safety exit, or after ${best.max_hold} minutes.`;
+  }
+
+  const ready = s.watchlist.filter(w => !w.blocking).length;
+  if (ready) return `${ready} coin${ready === 1 ? " meets" : "s meet"} every buy condition — a trade should open on the next price update.`;
+
+  const top = s.watchlist[0];
+  const pct = Math.round((top.heat || 0) * 100);
+  const halted = s.halted ? " Trading is paused for today after hitting the daily loss limit." : "";
+  return `Watching ${held} coins. None is unusual enough to trade — the closest is ` +
+    `${top.symbol}, about ${pct}% of the way there, held back because ` +
+    `${whyClause(top.blocking)}.${halted}`;
+}
+
+function renderMoney(s) {
+  const el = $("money"), note = $("moneynote");
+  const gross = s.stats.gross_pnl, fees = s.stats.fees_paid, net = gross - fees;
+  if (!s.stats.trades) {
+    el.innerHTML = '<div class="k">no closed trades yet</div><div></div><div></div>';
+    note.textContent = "";
+    return;
+  }
+  // One shared scale so the three bars are comparable at a glance -- the whole
+  // point is that the fee bar dwarfs the gross bar.
+  const scale = Math.max(Math.abs(gross), Math.abs(fees), Math.abs(net), 1e-9);
+  const row = (label, value, color) => `
+    <div class="k">${label}</div>
+    <div class="mbar"><i style="width:${(Math.abs(value) / scale * 100).toFixed(1)}%;background:${color}"></i></div>
+    <div class="v ${cls(value)}">${signed(value, 2, "")}</div>`;
+  el.innerHTML =
+    row("Gross P&L (before fees)", gross, gross >= 0 ? "var(--good)" : "var(--critical)") +
+    row("Fees paid", -fees, "var(--critical)") +
+    row("Net P&L", net, net >= 0 ? "var(--good)" : "var(--critical)");
+
+  if (gross > 0 && net < 0) {
+    const ratio = fees / gross;
+    note.innerHTML = `The strategy <strong>made ${fmt(gross, 2)}</strong> before costs and ` +
+      `paid <strong>${fmt(fees, 2)}</strong> to trade — ${fmt(ratio, 1)}× what it earned. ` +
+      `The signal works; the turnover does not pay for it.`;
+  } else if (gross <= 0) {
+    note.textContent = "Gross is negative: the entries are not earning anything for the fees to eat.";
+  } else {
+    note.textContent = "Net positive — rare. Check it holds on more than this window.";
+  }
+}
+
+function renderExits(reasons, total) {
+  const el = $("exits");
+  const entries = Object.entries(reasons || {});
+  if (!entries.length) { el.innerHTML = '<div class="empty">no closed trades yet</div>'; return; }
+  // Stop/target/timeout are states, not series: status colours, with the label
+  // always present so colour never carries the meaning alone.
+  const colour = (k) => k === "take_profit" ? "var(--good)"
+    : k === "stop_loss" ? "var(--critical)"
+    : k === "trailing_stop" ? "var(--series-1)" : "var(--muted)";
+  el.innerHTML = entries.map(([k, v]) => `
+    <div class="rejrow">
+      <span title="${why(k)}"><i class="swatch" style="background:${colour(k)};height:8px;width:8px;border-radius:50%"></i>${label(k)}</span>
+      <span class="num" style="color:var(--muted)">${v} · ${(v / total * 100).toFixed(0)}%</span>
+    </div>`).join("");
+}
+
+function renderLog(rows) {
+  $("log").innerHTML = rows.map(r =>
+    `<div><span class="t">${r.time}</span><span class="${r.level}">${escapeHtml(r.message)}</span></div>`
+  ).join("");
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// ------------------------------------------------------------------- chart
+const canvas = $("chart"), tip = $("tip");
+let plot = null; // {points, x0, x1, y0, y1, w, h, pad}
+
+function drawChart(curve, startEquity) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+
+  const css = getComputedStyle(document.documentElement);
+  const C = (n) => css.getPropertyValue(n).trim();
+
+  if (curve.length < 2) {
+    ctx.fillStyle = C("--muted");
+    ctx.font = "13px system-ui, sans-serif";
+    ctx.fillText("collecting data — the curve appears after the first minute", 12, h / 2);
+    plot = null;
+    return;
+  }
+
+  const padL = 58, padR = 62, padT = 10, padB = 20;
+  const xs = curve.map(p => p[0]);
+  // Two series share ONE scale. Never two y-axes: the whole point is that the
+  // gap between them is money, and a second axis would make it meaningless.
+  const vals = curve.flatMap(p => [p[1], p[2] ?? p[1]]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs);
+  let y0 = Math.min(...vals, startEquity), y1 = Math.max(...vals, startEquity);
+  const span = (y1 - y0) || Math.max(1, startEquity * 0.001);
+  y0 -= span * 0.12; y1 += span * 0.12;
+
+  const px = (t) => padL + ((t - x0) / Math.max(1, x1 - x0)) * (w - padL - padR);
+  const py = (v) => padT + (1 - (v - y0) / (y1 - y0)) * (h - padT - padB);
+
+  // gridlines + y labels (recessive)
+  ctx.strokeStyle = C("--grid"); ctx.lineWidth = 1;
+  ctx.fillStyle = C("--muted"); ctx.font = "11px system-ui, sans-serif";
+  ctx.textAlign = "right"; ctx.textBaseline = "middle";
+  for (let i = 0; i <= 4; i++) {
+    const v = y0 + (y1 - y0) * (i / 4), y = Math.round(py(v)) + 0.5;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(w - padR, y); ctx.stroke();
+    ctx.fillText(v.toFixed(2), padL - 8, y);
+  }
+
+  // starting equity reference
+  if (startEquity >= y0 && startEquity <= y1) {
+    ctx.save();
+    ctx.setLineDash([3, 3]);
+    ctx.strokeStyle = C("--axis");
+    ctx.beginPath();
+    const y = Math.round(py(startEquity)) + 0.5;
+    ctx.moveTo(padL, y); ctx.lineTo(w - padR, y); ctx.stroke();
+    ctx.restore();
+  }
+
+  const trace = (idx) => {
+    ctx.beginPath();
+    curve.forEach((p, i) => {
+      const v = p[idx] ?? p[1];
+      i ? ctx.lineTo(px(p[0]), py(v)) : ctx.moveTo(px(p[0]), py(v));
+    });
+  };
+
+  // Area under the account line, fading out downwards. Decoration, but it also
+  // makes the line's position readable at a glance on a busy page.
+  const areaFill = (idx, colour) => {
+    const g = ctx.createLinearGradient(0, padT, 0, h - padB);
+    g.addColorStop(0, colour + "38");
+    g.addColorStop(1, colour + "00");
+    ctx.save();
+    trace(idx);
+    ctx.lineTo(px(curve[curve.length - 1][0]), h - padB);
+    ctx.lineTo(px(curve[0][0]), h - padB);
+    ctx.closePath();
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.restore();
+  };
+
+  const line = (idx, colour, glow) => {
+    ctx.save();
+    if (glow) { ctx.shadowColor = colour + "80"; ctx.shadowBlur = 14; }
+    ctx.strokeStyle = colour;
+    ctx.lineWidth = 2; ctx.lineJoin = "round"; ctx.lineCap = "round";
+    trace(idx);
+    ctx.stroke();
+    ctx.restore();
+  };
+  // Counterfactual first so the real line sits on top where they overlap.
+  const hasFree = curve.some(p => p[2] !== undefined && Math.abs(p[2] - p[1]) > 1e-9);
+  if (hasFree) line(2, C("--series-2"), false);
+  areaFill(1, C("--series-1"));
+  line(1, C("--series-1"), true);
+
+  // A dot on the live end, ringed in the surface colour so it reads as on top.
+  const lastX = px(curve[curve.length - 1][0]), lastY = py(curve[curve.length - 1][1]);
+  ctx.fillStyle = C("--series-1");
+  ctx.beginPath(); ctx.arc(lastX, lastY, 3.5, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = C("--surface"); ctx.lineWidth = 2; ctx.stroke();
+
+  // Direct labels at the right edge -- with only two series, naming them on the
+  // plot beats making the eye travel to a legend.
+  const last = curve[curve.length - 1];
+  ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.font = "11px system-ui, sans-serif";
+  if (hasFree) {
+    ctx.fillStyle = C("--series-2");
+    ctx.fillText("free", w - padR + 6, py(last[2]));
+  }
+  ctx.fillStyle = C("--series-1");
+  ctx.fillText("actual", w - padR + 6, py(last[1]));
+
+  // x labels
+  ctx.textAlign = "left"; ctx.textBaseline = "top";
+  ctx.fillStyle = C("--muted");
+  ctx.fillText(new Date(x0).toLocaleTimeString(), padL, h - padB + 4);
+  ctx.textAlign = "right";
+  ctx.fillText(new Date(x1).toLocaleTimeString(), w - padR, h - padB + 4);
+
+  plot = { curve, px, py, padL, padR, w, h };
+  const actual = curve.map(p => p[1]);
+  $("chartrange").textContent =
+    `low ${Math.min(...actual).toFixed(2)} · high ${Math.max(...actual).toFixed(2)} · ${curve.length} points`;
+}
+
+canvas.addEventListener("mousemove", (e) => {
+  if (!plot) return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  let best = null, bestDist = Infinity;
+  for (const p of plot.curve) {
+    const d = Math.abs(plot.px(p[0]) - mx);
+    if (d < bestDist) { bestDist = d; best = p; }
+  }
+  if (!best || bestDist > 40) { tip.style.opacity = 0; return; }
+  const free = best[2];
+  const gap = (free === undefined) ? null : free - best[1];
+  tip.innerHTML =
+    `<strong>${best[1].toFixed(2)}</strong>` +
+    (gap !== null && Math.abs(gap) > 1e-9
+      ? `<br><span style="color:var(--series-2)">${free.toFixed(2)} free</span>` +
+        `<br><span style="color:var(--critical)">-${gap.toFixed(2)} in fees</span>`
+      : "") +
+    `<br><span style="color:var(--muted)">${new Date(best[0]).toLocaleTimeString()}</span>`;
+  tip.style.opacity = 1;
+  const x = plot.px(best[0]), y = plot.py(best[1]);
+  tip.style.left = Math.min(plot.w - 120, x + 12) + "px";
+  tip.style.top = Math.max(0, y - 40) + "px";
+  drawChart(plot.curve, latest ? latest.start_equity : 0);
+  const ctx = canvas.getContext("2d");
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const css = getComputedStyle(document.documentElement);
+  ctx.strokeStyle = css.getPropertyValue("--axis").trim();
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x + 0.5, 10); ctx.lineTo(x + 0.5, plot.h - 20); ctx.stroke();
+  ctx.fillStyle = css.getPropertyValue("--series-1").trim();
+  ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = css.getPropertyValue("--surface").trim();
+  ctx.lineWidth = 2; ctx.stroke();
+});
+canvas.addEventListener("mouseleave", () => {
+  tip.style.opacity = 0;
+  if (latest) drawChart(currentCurve(), latest.start_equity);
+});
+window.addEventListener("resize", () => {
+  if (latest) drawChart(currentCurve(), latest.start_equity);
+});
+
+// ------------------------------------------------------------ chart size
+// Height is a preference, so it is remembered. Stored as a number and clamped
+// on read: a corrupt or absurd localStorage value should not produce a
+// 20000px canvas that pushes every panel off the screen.
+const MIN_CHART_H = 120, MAX_CHART_H = 900;
+function setChartHeight(px, save = true) {
+  const h = Math.max(MIN_CHART_H, Math.min(MAX_CHART_H, Math.round(px)));
+  document.documentElement.style.setProperty("--chart-h", h + "px");
+  if (save) localStorage.setItem("chartH", String(h));
+  if (latest) drawChart(currentCurve(), latest.start_equity);
+  return h;
+}
+setChartHeight(parseInt(localStorage.getItem("chartH") || "230", 10), false);
+
+(function makeResizable() {
+  const grip = $("chartResize");
+  let startY = 0, startH = 0, active = false;
+  const begin = (e) => {
+    active = true; startY = e.clientY; startH = canvas.clientHeight;
+    grip.classList.add("dragging");
+    grip.setPointerCapture?.(e.pointerId);
+    e.preventDefault();
+  };
+  const move = (e) => { if (active) setChartHeight(startH + (e.clientY - startY)); };
+  const end = () => { active = false; grip.classList.remove("dragging"); };
+  grip.addEventListener("pointerdown", begin);
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", end);
+  // Keyboard is not an afterthought: a drag handle nobody can reach without a
+  // mouse is a control half the point of which is missing.
+  grip.tabIndex = 0;
+  grip.addEventListener("keydown", (e) => {
+    const step = e.shiftKey ? 60 : 20;
+    if (e.key === "ArrowUp") { setChartHeight(canvas.clientHeight - step); e.preventDefault(); }
+    if (e.key === "ArrowDown") { setChartHeight(canvas.clientHeight + step); e.preventDefault(); }
+  });
+  grip.addEventListener("dblclick", () => setChartHeight(230));
+})();
+
+// ----------------------------------------------------------- time range
+// The curve holds up to 600 samples; showing all of them squashes the recent
+// minutes that are actually being watched.
+const RANGES = [["5m", 5], ["15m", 15], ["1h", 60], ["all", 0]];
+let rangeMinutes = parseInt(localStorage.getItem("range") || "0", 10);
+
+function currentCurve() {
+  const curve = latest ? latest.equity_curve : [];
+  if (!rangeMinutes || !curve.length) return curve;
+  const cutoff = curve[curve.length - 1][0] - rangeMinutes * 60000;
+  const slice = curve.filter(p => p[0] >= cutoff);
+  // Two points minimum, or there is nothing to draw a line between.
+  return slice.length >= 2 ? slice : curve.slice(-2);
+}
+
+(function buildRanges() {
+  const host = $("rangebtns");
+  for (const [label, mins] of RANGES) {
+    const b = document.createElement("button");
+    b.textContent = label;
+    b.setAttribute("aria-pressed", String(mins === rangeMinutes));
+    b.addEventListener("click", () => {
+      rangeMinutes = mins;
+      localStorage.setItem("range", String(mins));
+      [...host.children].forEach(c =>
+        c.setAttribute("aria-pressed", String(c.textContent === label)));
+      if (latest) drawChart(currentCurve(), latest.start_equity);
+    });
+    host.appendChild(b);
+  }
+})();
+
+// ------------------------------------------------------------- collapsing
+(function makeCollapsible() {
+  document.querySelectorAll(".card > h2").forEach((h, i) => {
+    const card = h.parentElement;
+    if (card.id === "explain") return;         // has its own hide button
+    const key = "fold:" + (h.textContent.trim().slice(0, 28) || i);
+    const btn = document.createElement("button");
+    btn.className = "fold";
+    btn.textContent = "\u25BE";
+    btn.title = "Collapse this panel";
+    btn.setAttribute("aria-expanded", "true");
+    const apply = (folded) => {
+      card.classList.toggle("collapsed", folded);
+      btn.setAttribute("aria-expanded", String(!folded));
+      localStorage.setItem(key, folded ? "1" : "0");
+    };
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      apply(!card.classList.contains("collapsed"));
+    });
+    h.appendChild(btn);
+    if (localStorage.getItem(key) === "1") apply(true);
+  });
+})();
+
+// ---------------------------------------------------------------- controls
+// The explainer is for a first-time reader; once dismissed it stays dismissed.
+const explainEl = $("explain"), hideBtn = $("hideExplain");
+function setExplain(shown) {
+  explainEl.style.display = shown ? "" : "none";
+  hideBtn.textContent = shown ? "hide" : "show";
+  localStorage.setItem("explain", shown ? "1" : "0");
+  if (!shown) {
+    if (!$("showExplain")) {
+      const b = document.createElement("button");
+      b.id = "showExplain";
+      b.textContent = "what am I looking at?";
+      b.style.cssText = "text-transform:none;letter-spacing:0;margin-bottom:12px";
+      b.addEventListener("click", () => { setExplain(true); b.remove(); });
+      explainEl.parentNode.insertBefore(b, explainEl);
+    }
+  } else {
+    const b = $("showExplain");
+    if (b) b.remove();
+  }
+}
+hideBtn.addEventListener("click", () => setExplain(false));
+setExplain(localStorage.getItem("explain") !== "0");
+
+let paused = false;
+$("pause").addEventListener("click", () => {
+  paused = !paused;
+  $("pause").setAttribute("aria-pressed", String(paused));
+  $("pause").textContent = paused ? "resume" : "pause";
+  document.body.classList.toggle("paused", paused);
+  if (!paused && latest) apply(latest);
+});
+
+// system -> light -> dark. Stamps data-theme so the CSS toggle scopes win.
+const THEMES = ["system", "light", "dark"];
+let themeIdx = THEMES.indexOf(localStorage.getItem("theme") || "system");
+if (themeIdx < 0) themeIdx = 0;
+function applyTheme() {
+  const t = THEMES[themeIdx];
+  if (t === "system") document.documentElement.removeAttribute("data-theme");
+  else document.documentElement.setAttribute("data-theme", t);
+  $("theme").textContent = "theme: " + t;
+  localStorage.setItem("theme", t);
+  if (latest) drawChart(currentCurve(), latest.start_equity);
+}
+$("theme").addEventListener("click", () => {
+  themeIdx = (themeIdx + 1) % THEMES.length;
+  applyTheme();
+});
+applyTheme();
+
+// Density and keyboard shortcuts.
+const densityBtn = $("density");
+function setDensity(compact) {
+  document.body.classList.toggle("compact", compact);
+  densityBtn.setAttribute("aria-pressed", String(compact));
+  localStorage.setItem("compact", compact ? "1" : "0");
+  if (latest) drawChart(currentCurve(), latest.start_equity);
+}
+densityBtn.addEventListener("click", () =>
+  setDensity(!document.body.classList.contains("compact")));
+setDensity(localStorage.getItem("compact") === "1");
+
+$("keys").addEventListener("click", () => {
+  const box = $("keyhelp");
+  box.style.display = box.style.display === "none" ? "" : "none";
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.target.matches("input, textarea")) {
+    if (e.key === "Escape") e.target.blur();
+    return;
+  }
+  const map = {
+    "/": () => { $("filter").focus(); },
+    p: () => $("pause").click(),
+    t: () => $("theme").click(),
+    d: () => densityBtn.click(),
+    "?": () => $("keys").click(),
+    "+": () => setChartHeight(canvas.clientHeight + 40),
+    "-": () => setChartHeight(canvas.clientHeight - 40),
+  };
+  const fn = map[e.key];
+  if (fn) { fn(); e.preventDefault(); }
+});
+
+for (const id of ["filter", "onlyclose", "onlyready"]) {
+  $(id).addEventListener("input", () => { if (latest) renderWatchlist(latest.watchlist); });
+}
+
+// -------------------------------------------------------------- data feed
+function apply(s) {
+  latest = s;
+  if (paused) return;
+  renderHeader(s);
+  renderPositions(s.positions);
+  renderTrades(s.trades);
+  renderWatchlist(s.watchlist);
+  renderSignals(s.signals);
+  renderRejections(s.rejections);
+  $("plainstatus").textContent = plainStatus(s);
+  renderMoney(s);
+  renderExits(s.exit_reasons, s.stats.trades);
+  renderLog(s.logs);
+  drawChart(currentCurve(), s.start_equity);
+}
+
+function setConn(ok, text) {
+  $("conn").className = "dot " + (ok ? "on" : "off");
+  $("connText").textContent = text;
+}
+
+// -- measured evidence -------------------------------------------------------
+// The paragraph above is prose and prose goes stale: it described the bounce as
+// real for weeks after the clustering analysis showed it was not established.
+// These numbers come from data/findings.json, written by whichever research
+// command last ran. If nobody has run one, the block stays hidden rather than
+// showing a remembered result.
+const AGO = (ts) => {
+  const d = (Date.now() / 1000 - ts) / 86400;
+  if (!isFinite(d)) return "";
+  if (d < 1) return "today";
+  if (d < 2) return "yesterday";
+  return `${Math.round(d)} days ago`;
+};
+const cell = (k, v) => `<div class="ev"><span class="ev-k">${k}</span>` +
+                       `<span class="ev-v">${v}</span></div>`;
+
+async function loadFindings() {
+  let f;
+  try {
+    const r = await fetch("/api/findings");
+    f = await r.json();
+  } catch (err) { return; }
+  if (!f || !f.has_data) return;
+
+  const pct = (x) => (x >= 0 ? "+" : "") + x.toFixed(3) + "%";
+  const yr = (x) => (x >= 0 ? "+" : "") + x.toFixed(2) + "%/yr";
+  // The rows are independent. `ladder` can be the only measurement anyone has
+  // run, and gating the whole card on the crypto edge would have hidden it.
+  let shown = false;
+
+  if (f.edge != null) {
+    const basis = { windows: "months, counted as one each",
+                    blocks: "6-hour blocks",
+                    trades: "individual trades" }[f.basis] || f.basis;
+    $("evMain").innerHTML =
+      `<span class="ev-lab">Crypto</span>` +
+      cell("bounce per trade", pct(f.edge)) +
+      cell("chance of luck", f.p == null ? "—" : (f.p * 100).toFixed(1) + "%") +
+      (f.windows ? cell("months tested", `${f.positive ?? "?"} of ${f.windows} positive`) : "") +
+      (f.n ? cell("trades", f.n.toLocaleString()) : "") +
+      cell("counted as", basis);
+    shown = true;
+  } else {
+    $("evMain").hidden = true;
+  }
+
+  if (f.equities && f.equities.edge != null) {
+    const e = f.equities;
+    $("evEq").innerHTML =
+      `<span class="ev-lab">US stocks</span>` +
+      cell("bounce per trade", pct(e.edge)) +
+      cell("chance of luck", e.p == null ? "—" : (e.p * 100).toFixed(1) + "%") +
+      (e.n ? cell("trades", e.n.toLocaleString()) : "") +
+      (e.windows ? cell("counted as", "windows, one each")
+                 : cell("counted as", "individual trades"));
+    $("evEq").hidden = false;
+    shown = true;
+  }
+
+  // The viral ladder. Two numbers, and the second is the one that answers the
+  // post: "behind buy-and-hold" is mostly the cost of sitting in cash, and only
+  // the "of which timing" part is the buy-low-sell-high rules doing anything.
+  if (f.ladder && f.ladder.total != null) {
+    const L = f.ladder;
+    $("evLadder").innerHTML =
+      `<span class="ev-lab">Dip ladder</span>` +
+      cell("vs buy-and-hold", yr(L.total)) +
+      (L.timing == null ? "" : cell("of which timing", yr(L.timing))) +
+      (L.allocation == null ? "" : cell("of which cash", yr(L.allocation))) +
+      (L.windows ? cell("tested on",
+                        `${L.windows} x ${L.window_years ?? "?"}yr of ${L.symbol ?? "?"}`) : "") +
+      (L.max_dd == null ? "" : cell("worst fall",
+                                    `${L.max_dd.toFixed(0)}% vs ${(L.hold_dd ?? 0).toFixed(0)}%`)) +
+      (L.vendor_bps == null ? "" : cell("prices checked",
+                                        `${L.vendor_bps.toFixed(1)} bps vs a 2nd vendor`));
+    $("evLadder").hidden = false;
+    shown = true;
+  }
+
+  // The long-horizon answer: a trend filter halves the drawdown and costs
+  // return, and the timing part is indistinguishable from doing nothing.
+  if (f.longterm && f.longterm.vs_hold != null) {
+    const T = f.longterm;
+    $("evLong").innerHTML =
+      `<span class="ev-lab">Long horizon</span>` +
+      cell("best rule", T.best ?? "—") +
+      cell("vs buy-and-hold", yr(T.vs_hold)) +
+      (T.timing == null ? "" : cell("of which timing", yr(T.timing))) +
+      cell("chance of luck", T.p == null ? "—" : Math.min(100, T.p * 100).toFixed(0) + "%") +
+      (T.max_dd == null ? "" : cell("worst fall",
+                                    `${T.max_dd.toFixed(0)}% vs ${(T.hold_dd ?? 0).toFixed(0)}%`)) +
+      (T.timing_null == null ? "" : cell("doing nothing scores", yr(T.timing_null))) +
+      (T.windows ? cell("tested on",
+                        `${T.windows} x ${T.window_years ?? "?"}yr of ${T.symbol ?? "?"}`) : "");
+    $("evLong").hidden = false;
+    shown = true;
+  }
+
+  // The multi-asset verdict. The drawdown pair is the honest headline: the
+  // Sharpe difference is real-looking and unprovable on this much data, and
+  // the return column is negative.
+  if (f.allocate && f.allocate.delta_sharpe != null) {
+    const A = f.allocate;
+    $("evAlloc").innerHTML =
+      `<span class="ev-lab">Stocks + bonds</span>` +
+      cell("chosen in advance", A.chosen ?? "—") +
+      cell("extra Sharpe", (A.delta_sharpe >= 0 ? "+" : "") + A.delta_sharpe.toFixed(3)) +
+      cell("chance of luck", A.p == null ? "—" : Math.min(100, A.p * 100).toFixed(0) + "%") +
+      (A.cagr == null ? "" : cell("return", `${yr(A.cagr)} vs ${yr(A.equity_cagr ?? 0)}`)) +
+      (A.dd == null ? "" : cell("worst fall",
+                                `${A.dd.toFixed(0)}% vs ${(A.equity_dd ?? 0).toFixed(0)}%`)) +
+      (A.months ? cell("held out", `${Math.round(A.months / 12)} years`) : "");
+    $("evAlloc").hidden = false;
+    shown = true;
+  }
+
+  // Anything above 5% is the conventional line for "could be chance". Saying
+  // which side of it we are on matters more than the number itself.
+  const weak = f.p == null || f.p >= 0.05;
+  const note = f.edge == null
+    ? "No crypto measurement has been run yet."
+    : `"Chance of luck" is the probability of seeing a bounce this big from ` +
+      "entries picked at random. " +
+      (weak ? "Above the usual 5% line, so this does not count as evidence the bounce is real."
+            : "Below the usual 5% line — but read the caveat about what that assumes.");
+  const ladderNote = f.ladder && f.ladder.total != null
+    ? ` The ladder row is a different question: a whole allocation against ` +
+      "buy-and-hold, per year, over decades rather than per trade. Read its " +
+      "timing figure as “near zero” rather than as that exact number — " +
+      "it changes sign under design choices the original rules never specify. " +
+      "The cash figure is the stable one."
+    : "";
+  $("evNote").textContent =
+    `Last measured ${AGO(f.recorded_at ?? (f.ladder || {}).recorded_at)}. ` +
+    note + ladderNote;
+  if (shown) $("evidence").hidden = false;
+}
+loadFindings();
+
+let source = null;
+function connect() {
+  source = new EventSource("/api/stream");
+  source.onopen = () => setConn(true, "live");
+  source.onmessage = (e) => { try { apply(JSON.parse(e.data)); } catch (err) { console.error(err); } };
+  source.onerror = () => {
+    setConn(false, "disconnected — retrying");
+    source.close();
+    setTimeout(connect, 2000);
+  };
+}
+connect();
+</script>
+</body>
+</html>

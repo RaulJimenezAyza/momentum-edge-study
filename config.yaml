@@ -1,0 +1,190 @@
+# Momentum / gap scanner bot -- configuration
+#
+# mode: paper    -> real market data, simulated fills (default, no API keys)
+#       testnet  -> Binance Spot Testnet (needs testnet keys in .env)
+#       live     -> real money (needs real keys + TRADING_LIVE_CONFIRM=YES)
+mode: paper
+
+# Closed candles are immutable, so backtests/training/sweeps reuse them from
+# data/cache instead of re-downloading. Set false to force a fresh download.
+cache_enabled: true
+
+exchange:
+  # Regional mirrors if api.binance.com returns 451: api-gcp.binance.com,
+  # api1/2/3/4.binance.com, or data-api.binance.vision (public data only).
+  base_url: https://api.binance.com
+  ws_url: wss://stream.binance.com:9443/stream
+  testnet_base_url: https://testnet.binance.vision
+  testnet_ws_url: wss://stream.testnet.binance.vision:9443/stream
+  quote_asset: USDT
+  # How many symbols to watch, ranked by 24h quote volume.
+  universe_size: 50
+  # 5M USDT/24h currently leaves ~62 eligible pairs, enough to fill the 50 slots.
+  min_quote_volume_24h: 5000000
+  # Suffixes that disqualify a base asset (leveraged tokens).
+  exclude_patterns: ["UP", "DOWN", "BULL", "BEAR"]
+  # Stablecoins and metal-backed tokens: high volume, no momentum, and a
+  # "breakout" in one is a depeg, not a trade.
+  exclude_symbols:
+    - USDCUSDT
+    - FDUSDUSDT
+    - TUSDUSDT
+    - BUSDUSDT
+    - DAIUSDT
+    - USD1USDT
+    - RLUSDUSDT
+    - EURUSDT
+    - EURIUSDT
+    - XAUTUSDT
+    - PAXGUSDT
+
+strategy:
+  # 1m, 3m, 5m, 15m, 1h. Longer bars mean fewer trades, so the fixed cost per
+  # round trip is amortised over a larger expected move.
+  timeframe: 1m
+  # momentum -> buy breakouts above the recent high
+  # reversal -> buy capitulation below the recent low, betting on a bounce
+  #
+  # Default is reversal, but read the caveat -- the justification is weaker than
+  # it first looked.
+  #
+  # Momentum is reliably WORSE than entering at random (-0.090% per trade,
+  # p<0.001 on 45 days). Reversal beat random by +0.06 to +0.12% per trade at
+  # p<0.001 on several windows in the recent past -- but those windows overlap
+  # each other heavily, and on 30 days ending 120 days ago the edge is
+  # -0.002% with p = 0.93. Flat.
+  #
+  # So the honest statement is: reversal has never measured worse than random,
+  # momentum reliably does. That is why it is the default. It is NOT a claim
+  # that reversal is profitable, or that its edge persists.
+  direction: reversal
+  # Rolling window of closed candles kept per symbol.
+  lookback_bars: 120
+  # Warm-up before a symbol may generate signals.
+  min_bars_ready: 60
+  # Momentum measured over this many closed candles.
+  momentum_bars: 3
+  # Raw move required over momentum_bars, in percent.
+  min_return_pct: 0.6
+  # Same move expressed in std-devs of that symbol's own 1m returns.
+  min_return_zscore: 2.5
+  # Last candle volume vs mean volume of the window.
+  min_volume_mult: 3.0
+  # Close must exceed the high of the previous N closed candles.
+  breakout_bars: 30
+  # Reject if the move already looks exhausted (too far above the mean).
+  max_extension_pct: 6.0
+  # UTC hour windows the strategy may trade in, as [start, end) pairs.
+  # Empty = all hours.
+  #
+  # Tested because the reversal model's permutation importance put BTC
+  # volatility first, and because overnight books are thinner. On 45 days,
+  # 00-06 UTC scored +0.076% gross and 18-24 +0.061%, against -0.074% in 06-12.
+  # On the holdout the restriction scored -0.1218% against -0.0832% unrestricted
+  # (p = 0.34). Picking the best two of four buckets found noise. Left empty.
+  trading_hours_utc: []
+
+  # Spread BAND, not just a ceiling.
+  #
+  # Binning a 149-symbol universe by measured spread showed edge over random
+  # rising as liquidity falls (+0.020% in the sub-2 bps tier to +0.181% in the
+  # 12-30 bps tier, p<0.001) while spread rises faster -- an interior optimum
+  # at 2-5 bps, gross +0.032% there against -0.004% for the tightest books.
+  #
+  # It did NOT survive the holdout. Restricting to 2-5 bps scored -0.1025% per
+  # trade against -0.1119% unrestricted: 0.36 standard errors apart, which is
+  # nothing. The tier pattern was real in-sample and did not generalise, so the
+  # band ships OFF. Set min_spread_bps: 2.0 / max_spread_bps: 5.0 to re-test it
+  # on a future window.
+  min_spread_bps: 0.0
+  max_spread_bps: 8
+
+risk:
+  starting_equity: 1000.0
+  # Fraction of equity risked per trade; position size derives from stop distance.
+  risk_per_trade_pct: 1.0
+  max_positions: 5
+  # Hard cap on notional per position, as percent of equity.
+  max_position_pct: 20.0
+  min_notional: 12.0
+  # fixed -> the percentages below, same for every symbol
+  # atr   -> distances scaled by each symbol's own average true range. Entries
+  #          are already volatility-normalised by the z-score gate; leaving
+  #          exits on a flat percentage is an inconsistency, not a choice.
+  # When one candle touches BOTH the stop and the target, OHLC cannot say which
+  # came first. On this data that choice is worth about as much as the entire
+  # measured edge, so run it both ways and report the bracket -- a conclusion
+  # that only holds at one end is an artefact of the assumption, not a result.
+  #   pessimistic -> always the stop   (lower bound)
+  #   optimistic  -> always the target (upper bound)
+  #   open        -> whichever barrier the bar opened nearer to
+  intrabar_fill: pessimistic
+  stop_mode: fixed
+  atr_bars: 30
+  stop_atr_mult: 1.5
+  target_atr_mult: 3.0
+  trail_atr_mult: 1.0
+  min_stop_pct: 0.4
+  max_stop_pct: 6.0
+  # Used when stop_mode is fixed.
+  stop_loss_pct: 1.2
+  take_profit_pct: 2.4
+  # Trailing stop arms once unrealized PnL exceeds trail_activate_pct.
+  trail_activate_pct: 1.2
+  trailing_stop_pct: 0.8
+  max_hold_minutes: 30
+  # Kill switch: stop opening trades after this much drawdown in a UTC day.
+  daily_loss_limit_pct: 5.0
+  # Per-symbol lockout after a position closes.
+  cooldown_minutes: 15
+
+fees:
+  # Binance spot taker fee, 10 bps = 0.10%. Charged on entry AND exit.
+  taker_bps: 10.0
+  # fixed     -> slippage_bps below for every symbol
+  # estimated -> per-symbol, from the Abdi-Ranaldo spread estimator run on that
+  #              symbol's own candles. Real spreads on this universe span 0.2 to
+  #              38 bps; a single hand-picked number is wrong for all of them,
+  #              and when the assumption is bigger than the effect being
+  #              measured it decides the answer rather than informing it.
+  slippage_mode: estimated
+  # Assumed adverse fill on a market order, each side (fixed mode).
+  slippage_bps: 5.0
+  # Estimated mode: multiplier on the half-spread, covering walking past the
+  # touch. 1.0 = pay exactly half the quoted spread, the taker's best case.
+  impact_multiplier: 1.5
+  # Paying fees in BNB takes 25% off. Free money next to anything the strategy
+  # can do, so it is modelled rather than assumed away.
+  bnb_discount: false
+
+# Live web viewer. http://127.0.0.1:8787 while `run.py live` is running.
+dashboard:
+  enabled: true
+  host: 127.0.0.1
+  port: 8787
+  refresh_ms: 1000
+  history_points: 600
+
+# Learned filter. Scores each candidate breakout with P(net profit) and skips
+# the low ones. Train it first: python run.py train --days 45
+ml:
+  enabled: false
+  model_path: data/model.joblib
+  # auto: the trainer derives the cut-off from the training distribution and
+  # stores it in the model file. On a ~33% base rate, a calibrated model rarely
+  # emits anything above 0.5, so a hand-picked 0.55 keeps zero trades.
+  threshold_mode: auto
+  target_keep_fraction: 0.25
+  # Only used when threshold_mode is fixed.
+  min_probability: 0.55
+  # With the model deciding, the hand-tuned thresholds are loosened to this
+  # multiple so it has a wider candidate pool than the rules alone would take.
+  relax_factor: 0.6
+  embargo_minutes: 60
+  test_fraction: 0.3
+
+logging:
+  level: INFO
+  trades_csv: data/trades.csv
+  equity_csv: data/equity.csv
+  signals_csv: data/signals.csv
