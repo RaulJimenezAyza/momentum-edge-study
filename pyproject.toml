@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "A viral crypto momentum strategy, measured properly: paper-trading bot, walk-forward backtests and random-entry controls."
 readme = "README.md"
 requires-python = ">=3.12"
+license = { file = "LICENSE" }
 authors = [{ name = "Raúl Jiménez Ayza" }]
 dependencies = [
     "aiohttp>=3.9",
