@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from .config import Config
 
@@ -20,7 +20,7 @@ class RiskManager:
 
     # -- day bookkeeping ---------------------------------------------------
     def roll_day(self, time_ms: int, equity: float) -> None:
-        day = datetime.fromtimestamp(time_ms / 1000, timezone.utc).strftime("%Y-%m-%d")
+        day = datetime.fromtimestamp(time_ms / 1000, UTC).strftime("%Y-%m-%d")
         if day != self.day:
             self.day = day
             self.day_start_equity = equity

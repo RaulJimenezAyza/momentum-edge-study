@@ -304,7 +304,7 @@ def _print(cfg: Config, results: list[Window], days: float,
     print(f"    {'pooled':<14}{sum(w.signals.n for w in results):>7}"
           f"{'':>10}{'':>10}{mean:>+9.3f}%{p:>8.3f}"
           f"{f'[{mean - 1.96 * se:+.3f}, {mean + 1.96 * se:+.3f}]':>22}")
-    print(f"    (inverse-variance weighted, assumes trades are independent)")
+    print("    (inverse-variance weighted, assumes trades are independent)")
 
     b_mean, b_se, b_p, df = _between_window(results)
     if df >= 1:
@@ -320,7 +320,7 @@ def _print(cfg: Config, results: list[Window], days: float,
           f"significant in {significant}/{len(results)}.")
 
     if df >= 1 and b_p >= 0.05:
-        print(f"\n  Treating each window as a single observation, the effect is NOT")
+        print("\n  Treating each window as a single observation, the effect is NOT")
         print(f"  significant (p = {b_p:.3f} on {df} degrees of freedom). The")
         print("  trade-level p-values above assume that twenty signals fired by")
         print("  one market-wide move are twenty independent facts. They are not.")

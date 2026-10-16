@@ -32,7 +32,7 @@ import logging
 import time
 import urllib.request
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 log = logging.getLogger(__name__)
@@ -45,7 +45,7 @@ FILENAME = "shiller_sp500_monthly.csv"
 # earnings both are -- which is the other reason not to cache it forever.
 MAX_AGE_DAYS = 30
 
-EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
+EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
 
 
 @dataclass(frozen=True)
@@ -67,7 +67,7 @@ class Month:
 
 
 def _ms(year: int, month: int) -> int:
-    dt = datetime(year, month, 1, tzinfo=timezone.utc)
+    dt = datetime(year, month, 1, tzinfo=UTC)
     return int((dt - EPOCH).total_seconds() * 1000)
 
 
@@ -109,7 +109,7 @@ def parse(text: str) -> list[Month]:
         if price <= 0:
             continue
 
-        def number(key: str) -> float:
+        def number(key: str, parts: list[str] = parts) -> float:
             try:
                 return float(parts[idx[key]] or 0)
             except (ValueError, IndexError):

@@ -22,8 +22,8 @@ from .config import Config
 from .exchange import BinanceREST, Candle
 from .logbook import Logbook, print_summary, summarize
 from .risk import RiskManager
-from .strategy import MARKET_SYMBOL, Strategy
 from .spread import QUOTE_SNAPSHOT, refresh_quote_snapshot
+from .strategy import MARKET_SYMBOL, Strategy
 from .universe import select_universe
 
 log = logging.getLogger(__name__)

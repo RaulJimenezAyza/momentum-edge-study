@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
@@ -161,7 +161,7 @@ class Model:
         )
 
     @classmethod
-    def load(cls, path: Path) -> "Model":
+    def load(cls, path: Path) -> Model:
         import joblib
 
         blob = joblib.load(path)

@@ -29,7 +29,7 @@ from __future__ import annotations
 import csv
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from .backtest import load_history
@@ -64,7 +64,7 @@ def read_live_signals(path: Path) -> list[LiveSignal]:
                 stamp = datetime.strptime(row["time"], "%Y-%m-%d %H:%M:%S")
                 out.append(LiveSignal(
                     row["symbol"],
-                    int(stamp.replace(tzinfo=timezone.utc).timestamp() * 1000),
+                    int(stamp.replace(tzinfo=UTC).timestamp() * 1000),
                     float(row.get("spread_bps") or 0.0),
                 ))
             except (KeyError, ValueError) as exc:
@@ -83,7 +83,7 @@ async def run_reconcile(cfg: Config, pad_hours: float = 1.0) -> dict:
 
     # Cover the session plus warm-up, rounded out to whole days because that is
     # the granularity load_history works in.
-    now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+    now_ms = int(datetime.now(UTC).timestamp() * 1000)
     offset_days = max(0.0, (now_ms - last) / 86_400_000 - pad_hours / 24)
     days = (last - first) / 86_400_000 + 2 * pad_hours / 24 + \
         cfg.strategy.lookback_bars * cfg.bar_ms / 86_400_000
@@ -106,7 +106,7 @@ async def run_reconcile(cfg: Config, pad_hours: float = 1.0) -> dict:
     lookback = cfg.strategy.lookback_bars
     broker = PaperBroker(cfg, costs=costs)
     strategy = Strategy(cfg, broker, RiskManager(cfg))
-    for symbol, candles in history.items():
+    for symbol in history:
         strategy.spread_bps[symbol] = costs.spread_bps(symbol)
 
     tape = sorted(
@@ -178,7 +178,7 @@ async def run_reconcile(cfg: Config, pad_hours: float = 1.0) -> dict:
 
 
 def _ts(ms: int) -> str:
-    return datetime.fromtimestamp(ms / 1000, timezone.utc).strftime("%m-%d %H:%M")
+    return datetime.fromtimestamp(ms / 1000, UTC).strftime("%m-%d %H:%M")
 
 
 def _print(cfg, live, both, near, live_only, replay_only, span_h, costs,
@@ -188,7 +188,7 @@ def _print(cfg, live, both, near, live_only, replay_only, span_h, costs,
     print("=" * 78)
     print(f"    same bar               {len(both):>5}")
     print(f"    within 2 bars          {len(near):>5}   (same event, gate fired a")
-    print(f"                                  minute apart)")
+    print("                                  minute apart)")
     print(f"    live only              {len(live_only):>5}   (replay cannot reproduce)")
     print(f"    replay only            {len(replay_only):>5}   (the bot did not take)")
 

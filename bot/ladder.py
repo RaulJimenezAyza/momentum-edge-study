@@ -60,11 +60,11 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from .config import Config
-from .findings import record
 from .exchange import Candle
+from .findings import record
 from .yahoo import load_equity_history
 
 log = logging.getLogger(__name__)
@@ -156,7 +156,7 @@ CASH_YIELD_PCT = 3.3
 MIN_WINDOWS = 4
 
 
-EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
+EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
 
 
 def year_of(open_time_ms: int) -> int:
@@ -713,7 +713,7 @@ DIV_FACTOR_BOUNDS = (0.998, 1.002)
 
 
 def _month_ms(year: int, month: int) -> int:
-    return int((datetime(year, month, 1, tzinfo=timezone.utc)
+    return int((datetime(year, month, 1, tzinfo=UTC)
                 - EPOCH).total_seconds() * 1000)
 
 

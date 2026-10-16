@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from .series import Series
 
@@ -27,7 +27,7 @@ class MarketContext:
     sigma: float = 0.0
 
     @classmethod
-    def from_series(cls, market: Series | None) -> "MarketContext":
+    def from_series(cls, market: Series | None) -> MarketContext:
         if market is None or len(market) < 60:
             return cls()
         return cls(
@@ -115,7 +115,7 @@ def extract(series: Series, market: MarketContext | None = None) -> list[float]:
     m_ret_15, m_ret_60, m_sigma = ctx.ret_15, ctx.ret_60, ctx.sigma
 
     # Crypto trades 24/7 but liquidity is not flat across the day.
-    hour = datetime.fromtimestamp(last.open_time / 1000, timezone.utc).hour
+    hour = datetime.fromtimestamp(last.open_time / 1000, UTC).hour
     angle = 2.0 * math.pi * hour / 24.0
 
     values = [

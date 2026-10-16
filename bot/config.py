@@ -305,7 +305,7 @@ class Config:
             raise ValueError("risk.stop_mode must be fixed or atr")
         if r.stop_mode == "atr" and r.target_atr_mult <= r.stop_atr_mult:
             raise ValueError("risk.target_atr_mult must exceed stop_atr_mult")
-        self.bar_ms  # raises on an unsupported timeframe
+        self.bar_ms  # noqa: B018 -- raises on an unsupported timeframe
         if s.momentum_bars < 1:
             raise ValueError("strategy.momentum_bars must be >= 1")
         if s.min_bars_ready > s.lookback_bars:

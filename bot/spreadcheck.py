@@ -80,7 +80,6 @@ def _spearman(a: list[float], b: list[float]) -> float:
 
 
 def _print(cfg: Config, pairs: list[tuple[str, float, float]]) -> None:
-    ests = [e for _, e, _ in pairs]
     lives = [q for _, _, q in pairs]
     # Ratios over MEASURED symbols only would drop precisely the cases where
     # the estimator failed -- survivorship bias inside the bias check. The

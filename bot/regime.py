@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 import random
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from .backtest import load_history
 from .config import Config
@@ -123,7 +123,7 @@ async def run_regime(
 
             vb = vol_buckets[sum(1 for edge in q if vol >= edge)]
             hb = hour_buckets[
-                datetime.fromtimestamp(t / 1000, timezone.utc).hour // 6
+                datetime.fromtimestamp(t / 1000, UTC).hour // 6
             ]
             for b in (vb, hb):
                 b.signals.nets.append(outcome.net_pct)
@@ -148,7 +148,7 @@ async def run_regime(
                     continue
                 if sum(1 for edge in q if jvol >= edge) == vol_buckets.index(vb):
                     vb.random.nets.append(ro.net_pct)
-                if datetime.fromtimestamp(jt / 1000, timezone.utc).hour // 6 \
+                if datetime.fromtimestamp(jt / 1000, UTC).hour // 6 \
                         == hour_buckets.index(hb):
                     hb.random.nets.append(ro.net_pct)
 
@@ -203,6 +203,6 @@ def _print(cfg, title, buckets, min_trades, days, offset) -> None:
         print("\n  The edge does not depend meaningfully on this cut. The buckets sit")
         print("  within noise of each other, so there is no regime worth selecting.")
     if separated:
-        print(f"  Beat random with the CI clear of zero: "
+        print("  Beat random with the CI clear of zero: "
               + ", ".join(b.name for b in separated))
     print("=" * 86 + "\n")

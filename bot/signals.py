@@ -13,7 +13,7 @@ Two entry points:
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from .config import StrategyConfig
@@ -38,7 +38,7 @@ def _in_trading_hours(cfg: StrategyConfig, time_ms: int) -> bool:
     """Whether a signal at this timestamp falls inside an allowed UTC window."""
     if not cfg.trading_hours_utc:
         return True
-    hour = datetime.fromtimestamp(time_ms / 1000, timezone.utc).hour
+    hour = datetime.fromtimestamp(time_ms / 1000, UTC).hour
     return any(lo <= hour < hi for lo, hi in cfg.trading_hours_utc)
 
 

@@ -8,8 +8,9 @@ import hmac
 import json
 import logging
 import time
+from collections.abc import AsyncIterator, Iterable
 from dataclasses import dataclass
-from typing import Any, AsyncIterator, Iterable
+from typing import Any
 from urllib.parse import urlencode
 
 import aiohttp
@@ -42,7 +43,7 @@ class Candle:
     closed: bool
 
     @classmethod
-    def from_rest(cls, row: list) -> "Candle":
+    def from_rest(cls, row: list) -> Candle:
         return cls(
             open_time=int(row[0]),
             open=float(row[1]),
@@ -55,7 +56,7 @@ class Candle:
         )
 
     @classmethod
-    def from_ws(cls, k: dict) -> "Candle":
+    def from_ws(cls, k: dict) -> Candle:
         return cls(
             open_time=int(k["t"]),
             open=float(k["o"]),
@@ -98,7 +99,7 @@ class BinanceREST:
         self.api_secret = api_secret
         self._session: aiohttp.ClientSession | None = None
 
-    async def __aenter__(self) -> "BinanceREST":
+    async def __aenter__(self) -> BinanceREST:
         headers = {"X-MBX-APIKEY": self.api_key} if self.api_key else {}
         self._session = aiohttp.ClientSession(
             headers=headers, timeout=aiohttp.ClientTimeout(total=20)

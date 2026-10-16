@@ -206,8 +206,9 @@ class Engine:
 
     # -- main --------------------------------------------------------------
     async def run(self) -> None:
-        key = os.getenv("BINANCE_TESTNET_API_KEY" if self.cfg.is_testnet else "BINANCE_API_KEY", "")
-        secret = os.getenv("BINANCE_TESTNET_API_SECRET" if self.cfg.is_testnet else "BINANCE_API_SECRET", "")
+        prefix = "BINANCE_TESTNET_API" if self.cfg.is_testnet else "BINANCE_API"
+        key = os.getenv(f"{prefix}_KEY", "")
+        secret = os.getenv(f"{prefix}_SECRET", "")
 
         logging.getLogger().addHandler(self.log_tail)
 

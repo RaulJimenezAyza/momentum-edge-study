@@ -47,7 +47,7 @@ from dataclasses import dataclass, field
 from .basket import Basket, annualised, load_basket
 from .config import Config
 from .findings import record
-from .ladder import Taxes, cost_bps
+from .ladder import NO_TAX, Taxes, cost_bps
 
 log = logging.getLogger(__name__)
 
@@ -189,7 +189,7 @@ CANDIDATES = tuple(s for s in STRATEGIES if s not in ("equity", "bond"))
 
 
 def simulate(basket: Basket, name: str, months: list[tuple[int, int]],
-             taxes: Taxes = Taxes(0.0, False), band: float = BAND,
+             taxes: Taxes = NO_TAX, band: float = BAND,
              max_leverage: float = 1.0) -> Result:
     """Run one strategy over one list of months, monthly rebalanced."""
     holdings = {"equity": 0.0, "bond": 0.0}
@@ -205,7 +205,7 @@ def simulate(basket: Basket, name: str, months: list[tuple[int, int]],
     weight_sum = {"equity": 0.0, "bond": 0.0}
     history: dict[str, list[float]] = {"equity": [], "bond": []}
 
-    for index, key in enumerate(months):
+    for key in months:
         rates = basket.returns(key)
         # 1. Grow what is held, and pay or earn on the cash leg.
         for asset in holdings:

@@ -289,7 +289,7 @@ def _print(cfg, taker, taker_all, maker, missed, next_open, confirmed, unconfirm
         print()
         delta = confirmed.arm.mean - taker.arm.mean
         t2, p2 = welch(confirmed.arm, taker.arm)
-        print(f"  CONFIRMATION ENTRY, the hypothesis this measurement produced:")
+        print("  CONFIRMATION ENTRY, the hypothesis this measurement produced:")
         print(f"    wait one bar and buy only if it rose: {confirmed.arm.mean:+.4f}%"
               f" on {confirmed.arm.n} trades")
         print(f"    against buying immediately:           {taker.arm.mean:+.4f}%")

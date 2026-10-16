@@ -6,7 +6,7 @@ import csv
 import logging
 import math
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from .broker import Trade
@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 
 
 def _ts(ms: int) -> str:
-    return datetime.fromtimestamp(ms / 1000, timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    return datetime.fromtimestamp(ms / 1000, UTC).strftime("%Y-%m-%d %H:%M:%S")
 
 
 class CsvWriter:

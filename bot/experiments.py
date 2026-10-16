@@ -234,7 +234,7 @@ def _print(cfg: Config, results: list[Variant], days: float, offset: float = 0.0
               "window before believing it.")
 
     if significant:
-        print(f"\n  Beat random at p<0.05: "
+        print("\n  Beat random at p<0.05: "
               + ", ".join(v.label.strip() for v in significant))
     else:
         print("\n  NOT ONE variant beats random entries at p<0.05.")

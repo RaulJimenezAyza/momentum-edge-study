@@ -52,16 +52,16 @@ def _to_candles(frame) -> list[Candle]:
     out: list[Candle] = []
     for stamp, row in frame.iterrows():
         try:
-            o, h, l, c = (float(row["Open"]), float(row["High"]),
+            o, h, lo, c = (float(row["Open"]), float(row["High"]),
                           float(row["Low"]), float(row["Close"]))
             v = float(row["Volume"])
         except (KeyError, TypeError, ValueError):
             continue
-        if not all(x > 0 for x in (o, h, l, c)) or h < l:
+        if not all(x > 0 for x in (o, h, lo, c)) or h < lo:
             continue
         out.append(Candle(
             open_time=int(stamp.timestamp() * 1000),
-            open=o, high=h, low=l, close=c,
+            open=o, high=h, low=lo, close=c,
             volume=v, quote_volume=v * c, closed=True,
         ))
     out.sort(key=lambda x: x.open_time)

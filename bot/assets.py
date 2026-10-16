@@ -28,6 +28,8 @@ SHIB equities.
 
 from __future__ import annotations
 
+from datetime import UTC
+
 # Gold, held as a token.
 METALS = frozenset({"XAUT", "PAXG", "XAUTUSDT", "PAXGUSDT"})
 
@@ -71,9 +73,9 @@ def classify(symbol: str, quote: str = "USDT") -> str:
 
 def us_market_open(time_ms: int) -> bool:
     """Rough check: is the underlying US market open at this timestamp?"""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
-    dt = datetime.fromtimestamp(time_ms / 1000, timezone.utc)
+    dt = datetime.fromtimestamp(time_ms / 1000, UTC)
     if dt.weekday() >= 5:          # Saturday, Sunday
         return False
     return US_OPEN_HOUR <= dt.hour < US_CLOSE_HOUR

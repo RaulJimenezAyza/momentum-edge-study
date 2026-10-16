@@ -62,13 +62,30 @@ from dataclasses import dataclass
 from .config import Config
 from .exchange import Candle
 from .findings import record
+
 # The money mechanics -- accrual, costs, tax, windowing, window statistics --
 # live in ladder.py and are imported rather than copied. The invariant that a
 # ladder with no rungs must equal buy-and-hold to the cent exists precisely
 # because two copies of this arithmetic had already drifted apart once.
-from .ladder import (DAY_MS, MIN_WINDOWS, NO_TAX, YEAR_DAYS, Run, Taxes,
-                     Yields, _accrue, _Book, _buy, _sell, _settle, _stats,
-                     cost_bps, load_measured_yields, split_windows, year_of)
+from .ladder import (
+    DAY_MS,
+    MIN_WINDOWS,
+    NO_TAX,
+    YEAR_DAYS,
+    Run,
+    Taxes,
+    Yields,
+    _accrue,
+    _Book,
+    _buy,
+    _sell,
+    _settle,
+    _stats,
+    cost_bps,
+    load_measured_yields,
+    split_windows,
+    year_of,
+)
 from .shiller import cape_path, load_shiller, month_of
 from .yahoo import load_equity_history
 

@@ -15,7 +15,7 @@ import json
 import logging
 import time
 from collections import deque
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -46,7 +46,7 @@ class LogTail(logging.Handler):
             self.records.append(
                 {
                     "time": datetime.fromtimestamp(
-                        record.created, timezone.utc
+                        record.created, UTC
                     ).strftime("%H:%M:%S"),
                     "level": record.levelname,
                     "message": record.getMessage(),
@@ -64,7 +64,7 @@ def _counts(values) -> dict[str, int]:
 
 
 def _ts(ms: int) -> str:
-    return datetime.fromtimestamp(ms / 1000, timezone.utc).strftime("%H:%M:%S")
+    return datetime.fromtimestamp(ms / 1000, UTC).strftime("%H:%M:%S")
 
 
 class DashboardState:

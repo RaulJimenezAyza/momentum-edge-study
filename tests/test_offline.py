@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import math
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import random
+from datetime import UTC
 
 from bot.broker import PaperBroker
 from bot.config import load_config
@@ -564,7 +564,8 @@ def test_dashboard_snapshot() -> None:
 
     # Every exit reason and gate the page can receive must have a human label,
     # or the UI shows raw identifiers to the user.
-    html = (Path(__file__).resolve().parents[1] / "bot" / "static" / "dashboard.html").read_text(encoding="utf-8")
+    page = Path(__file__).resolve().parents[1] / "bot" / "static" / "dashboard.html"
+    html = page.read_text(encoding="utf-8")
     from bot.signals import GATE_ORDER
     labelled = html[html.index("const GATE_LABEL"):html.index("const label =")]
     missing = [k for k in (*GATE_ORDER, "stop_loss", "trailing_stop", "take_profit",
@@ -1269,8 +1270,12 @@ def test_point_in_time_universe() -> None:
     trades -- and the test pins that distinction too.
     """
     print(chr(10) + "point-in-time universe")
-    from bot.pointintime import (RANK_DAYS, listing_report,
-                                 point_in_time_universe, quote_volume_between)
+    from bot.pointintime import (
+        RANK_DAYS,
+        listing_report,
+        point_in_time_universe,
+        quote_volume_between,
+    )
 
     day = 86_400_000
     window_start = 200 * day
@@ -1364,7 +1369,7 @@ def test_internal_call_arity() -> None:
                             f"{path.name}: {node.func.id}() line {node.lineno} "
                             f"passes unknown keyword {kw.arg!r}")
 
-    check(f"every internal call matches its definition", not problems,
+    check("every internal call matches its definition", not problems,
           str(problems[:4]))
 
 
@@ -1417,9 +1422,9 @@ def test_cli_wiring() -> None:
     """
     print(chr(10) + "CLI wiring")
     import ast
+    import contextlib
     import importlib
     import io
-    import contextlib
 
     run = importlib.import_module("run")
     src = CONFIG_PATH.parent / "run.py"
@@ -1428,7 +1433,8 @@ def test_cli_wiring() -> None:
     # Which flags does each cmd_* function actually read off `args`?
     reads: dict[str, set[str]] = {}
     for node in ast.walk(tree):
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))                 and node.name.startswith("cmd_"):
+        if (isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and node.name.startswith("cmd_")):
             used = {
                 sub.attr for sub in ast.walk(node)
                 if isinstance(sub, ast.Attribute)
@@ -1535,8 +1541,7 @@ def test_sessions() -> None:
     and a stop can sit unreachable until the next open.
     """
     print(chr(10) + "session handling")
-    from bot.sessions import (contiguous_back, forward_window, is_gap,
-                              session_index, session_stats)
+    from bot.sessions import contiguous_back, forward_window, is_gap, session_index, session_stats
 
     bar = 5 * MINUTE
     # Two sessions of 6 bars, separated by a 17-hour night.
@@ -1565,7 +1570,7 @@ def test_sessions() -> None:
     check("too little history is not contiguous", not contiguous_back(day1[:2], 4, bar))
 
     # 2: a position cannot be carried through a close.
-    win = forward_window(both, 3, horizon := 10, bar)
+    win = forward_window(both, 3, 10, bar)
     check("forward window stops at the bell", len(win) == 2, str(len(win)))
     check("and contains only same-session bars",
           all(c.open_time < day2[0].open_time for c in win))
@@ -1599,7 +1604,7 @@ def test_asset_classification() -> None:
     import datetime as dt
 
     def at(day, hour):
-        return int(dt.datetime(2026, 8, day, hour, tzinfo=dt.timezone.utc)
+        return int(dt.datetime(2026, 8, day, hour, tzinfo=dt.UTC)
                    .timestamp() * 1000)
 
     check("weekday mid-session is open", us_market_open(at(12, 15)))
@@ -2003,7 +2008,8 @@ def test_nullcheck_stats() -> None:
 
 def test_exitfit() -> None:
     print("\nexit fit")
-    from bot.exitfit import HOLDS, STOPS, TARGETS, Path as XPath, _excursions, _pct, _score_exit
+    from bot.exitfit import HOLDS, STOPS, TARGETS, _excursions, _pct, _score_exit
+    from bot.exitfit import Path as XPath
 
     entry = 100.0
     up = [Candle(i * MINUTE, entry, entry * (1 + 0.002 * (i + 1)),
@@ -2141,8 +2147,15 @@ def test_ladder() -> None:
     between testing the strategy and testing a leveraged bottom-tick.
     """
     print(chr(10) + "the 105-year-old's ladder")
-    from bot.ladder import (COST_ERAS, FlatYields, MeasuredYields, cost_bps,
-                            simulate_hold, simulate_ladder, split_windows)
+    from bot.ladder import (
+        COST_ERAS,
+        FlatYields,
+        MeasuredYields,
+        cost_bps,
+        simulate_hold,
+        simulate_ladder,
+        split_windows,
+    )
 
     NONE = FlatYields(0.0, 0.0)
 
@@ -2481,8 +2494,7 @@ def test_longterm() -> None:
     """
     print(chr(10) + "the long-horizon bot")
     from bot.ladder import FlatYields, Taxes
-    from bot.longterm import (CAPE_MIN_HISTORY, SMA_DAYS, cape_weight,
-                              simulate, sma_weight)
+    from bot.longterm import CAPE_MIN_HISTORY, SMA_DAYS, cape_weight, simulate, sma_weight
 
     day = 86_400_000
     base = 1_577_836_800_000
@@ -2574,8 +2586,14 @@ def test_basket_and_allocation() -> None:
     beautiful.
     """
     print(chr(10) + "the basket and the allocator")
-    from bot.allocate import (BAND, LOOKBACK, _target_weights,
-                              block_bootstrap_sharpe, sharpe_of, simulate)
+    from bot.allocate import (
+        BAND,
+        LOOKBACK,
+        _target_weights,
+        block_bootstrap_sharpe,
+        sharpe_of,
+        simulate,
+    )
     from bot.basket import Basket, bond_returns, month_end, price_returns
 
     day = 86_400_000
@@ -2654,8 +2672,8 @@ def test_basket_and_allocation() -> None:
     run = simulate(steady, "equity", months, band=BAND)
     # Month one is spent in cash because the book starts empty and trades only
     # after that month's return; the entry then pays one era commission.
-    from bot.ladder import cost_bps
     from bot.allocate import _stamp
+    from bot.ladder import cost_bps
     fee = cost_bps(_stamp((2000, 1))) / 10_000.0
     want_cagr = ((1.01 ** 11) / (1.0 + fee) - 1.0) * 100.0
     check("eleven compounded months of 1%, the first spent in cash",
@@ -2828,11 +2846,11 @@ def test_second_vendor() -> None:
 
     # Monthly aggregation of daily bars: all three statistics a vendor might
     # publish, so a disagreeing row can be identified rather than shrugged at.
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     day = 86_400_000
-    epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
-    jan = int((datetime(1990, 1, 1, tzinfo=timezone.utc) - epoch).total_seconds() * 1000)
+    epoch = datetime(1970, 1, 1, tzinfo=UTC)
+    jan = int((datetime(1990, 1, 1, tzinfo=UTC) - epoch).total_seconds() * 1000)
     bars = [candle(jan + i * day, 100.0 + i) for i in range(10)]
     stats = monthly_stats(bars)
     check("one month, ten bars", list(stats) == [(1990, 1)]

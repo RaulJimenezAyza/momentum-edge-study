@@ -1,10 +1,41 @@
-# Momentum scanner bot (Binance spot)
+# Momentum edge study
 
-Scans ~50 USDT pairs, detects volume-confirmed dislocations on 1-minute
-candles, and manages positions with a stop, a target and a trailing stop. Runs
-in **paper mode by default** — real market data, simulated fills, no API keys,
-no money at risk. Includes a live web viewer, a walk-forward test harness, and
-an ML filter that turned out not to help.
+[![CI](https://github.com/RaulJimenezAyza/momentum-edge-study/actions/workflows/ci.yml/badge.svg)](https://github.com/RaulJimenezAyza/momentum-edge-study/actions/workflows/ci.yml)
+
+**Does a viral crypto trading strategy actually have an edge? I built it and measured it properly.
+Mostly, it doesn't — and this repo shows how you find that out without fooling yourself.**
+
+Under the hood it is a complete trading system in Python: it scans ~50 Binance USDT pairs over
+websockets, detects volume-confirmed dislocations on 1-minute candles, and manages positions with a
+stop, a target and a trailing stop. It runs in **paper mode by default** — real market data,
+simulated fills, no API keys, no money at risk. Around it sits the part that matters: a research
+harness that compares every rule against random entries, on windows the search never saw.
+
+**What's in here, engineering-wise**
+
+- **Async data pipeline** — `aiohttp` + `websockets` client for Binance REST and streams, with an
+  on-disk candle cache that detects gaps, so backtests replay months of 1-minute data offline.
+- **One strategy, two runtimes** — the live engine and the backtester share the same strategy and
+  broker code; a reconcile command replays a live session and diffs it against what happened.
+- **Statistics that don't flatter** — walk-forward search, random-entry null tests matched on
+  volatility, block bootstrap so signals fired by the same market move count once, between-window
+  tests, multiple-testing correction, point-in-time universes to remove survivorship bias.
+- **A cost model checked against reality** — per-symbol spread estimates validated against live
+  order-book quotes, because costs turned out to be the biggest error in the whole study.
+- **A live web viewer** (`bot/dashboard.py`, one self-contained HTML page) and an ML filter
+  (scikit-learn, walk-forward evaluated) that turned out not to help — reported, not hidden.
+- **51 offline tests (~490 checks)** that run in seconds with no network, including structural
+  tests that parse the code to catch wrong call arity, dead imports and CLI flags no command reads.
+  Linted with ruff and run on CI for Python 3.12 and 3.13.
+
+**Where to start reading:** the [thirty-second answer](#the-answer-in-thirty-seconds) ·
+[the null test](#the-null-test-do-the-rules-do-anything-at-all) ·
+[the cost model mistake](#the-cost-model-was-the-biggest-error-in-this-repo) ·
+[the mistake that mattered most](#the-mistake-that-mattered-most) ·
+[non-independent trades](#the-trades-were-never-independent-and-every-p-value-assumed-they-were) ·
+[install and run](#install) · [code layout](#layout)
+
+The rest of this README is the full lab notebook, in the order it happened.
 
 ## The answer in thirty seconds
 
@@ -2186,15 +2217,24 @@ and neither would have been visible in the headline number.
 ## Install
 
 ```bash
-cd Bot
+git clone https://github.com/RaulJimenezAyza/momentum-edge-study
+cd momentum-edge-study
 python -m venv .venv
-.venv\Scripts\activate          # Windows
-pip install -r requirements.txt
+source .venv/bin/activate       # Windows: .venv\Scripts\activate
+pip install -e ".[ml,dev]"      # or: pip install -r requirements.txt
 ```
 
-Python 3.10+. Paper mode needs no `.env`. `numpy`/`scikit-learn`/`joblib` are
-only used by `run.py train` and `ml.enabled` — the bot and the viewer run
-without them.
+Python 3.12+. Paper mode needs no `.env`. The `ml` extra (`numpy`/`scikit-learn`/`joblib`) is
+only used by `run.py train` and `ml.enabled`, and `equities` (`yfinance`) only by the US-equity
+commands — the bot and the viewer run without them.
+
+## Tests
+
+```bash
+pytest -q                       # 51 tests, ~490 checks, no network, ~15 s
+python tests/test_offline.py    # same suite, printing every individual check
+ruff check .
+```
 
 ## Use
 
@@ -2559,5 +2599,7 @@ bot/features.py           feature vector, shared by training and inference
 bot/ml.py                 dataset, model, walk-forward report
 bot/trainer.py            the train / model commands
 
-tests/test_offline.py     486 offline checks
+tests/test_offline.py     486 offline checks, runnable as a script or with pytest
+tests/conftest.py         turns a failed check into a failed pytest test
+pyproject.toml            package metadata, extras, pytest and ruff config
 ```

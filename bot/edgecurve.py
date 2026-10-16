@@ -170,7 +170,7 @@ def _print(cfg: Config, buckets: list[Bucket], days: float, offset: float) -> No
 
     if any(b.arm.mean > 0 for b in buckets):
         winners = [b for b in buckets if b.arm.mean > 0]
-        print(f"\n  Net-positive buckets: "
+        print("\n  Net-positive buckets: "
               + ", ".join(f"z {b.lo:.1f}+ ({b.arm.mean:+.3f}%, n={b.arm.n})"
                           for b in winners))
         print("  Judge these on the holdout window before believing them.")

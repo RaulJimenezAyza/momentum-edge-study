@@ -457,7 +457,6 @@ def _print(cfg, r: Result, symbols: int, days, interval, costs,
            rejections: dict[str, int] | None = None) -> None:
     t, p = welch(r.signals, r.random)
     lo, hi, boot_p = bootstrap_ci(r.signals, r.random)
-    round_trip = 2 * (cfg.fees.effective_taker_bps + 3.0) / 100
 
     print("\n" + "=" * 80)
     print(f"  US EQUITIES -- {cfg.strategy.direction}, {interval} bars, "

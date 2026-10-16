@@ -161,7 +161,7 @@ def _diagnose(cfg: Config, paths: list[Path], bar_minutes: float) -> dict:
               f"{r['mae_p10']:>+9.2f}%")
 
     # Reachability: the question the max_hold pile-up actually poses.
-    print(f"\n  Share of signals that touch a target within the hold, per target:")
+    print("\n  Share of signals that touch a target within the hold, per target:")
     print(f"    {'target':>8}" + "".join(f"{str(m) + 'm':>9}" for m in HOLDS))
     reach = {}
     for target in TARGETS:
@@ -181,8 +181,8 @@ def _diagnose(cfg: Config, paths: list[Path], bar_minutes: float) -> dict:
     print("-" * 84)
     print(f"  Current setting is {current_t:.1f}% target within {current_h}m. "
           f"Only {share:.0f}% of signals")
-    print(f"  ever touch that level in that time -- the rest can only exit at the")
-    print(f"  stop or the clock. That is where the max_hold pile-up comes from.")
+    print("  ever touch that level in that time -- the rest can only exit at the")
+    print("  stop or the clock. That is where the max_hold pile-up comes from.")
     print("=" * 84)
     return {"excursions": rows, "reachability": {str(k): v for k, v in reach.items()}}
 
@@ -287,7 +287,7 @@ def _print_fit(cfg, baseline, overall, carried, min_trades) -> None:
           f"gross {baseline.gross:+.4f}%, net {baseline.net:+.4f}%")
 
     eligible = [r for r in overall if r.trades >= min_trades]
-    print(f"\n  Best in sample -- a ranking, not a result:")
+    print("\n  Best in sample -- a ranking, not a result:")
     print(f"    {'net':>10}{'gross':>10}{'wins':>8}{'n':>7}  setting")
     for r in eligible[:8]:
         print(f"    {r.net:>+9.4f}%{r.gross:>+9.4f}%{r.win_rate:>7.1f}%{r.trades:>7}  {fmt(r)}")

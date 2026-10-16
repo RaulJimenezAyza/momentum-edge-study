@@ -172,11 +172,11 @@ def _print(cfg: Config, tiers: list[Tier], days: float, offset: float, n_sym: in
     print("-" * 88)
     liquid, illiquid = tiers[0], tiers[-1]
     edges = [t.edge for t in tiers]
-    grosses = [t.gross_mean for t in tiers]
     rising_edge = sum(1 for a, b in zip(edges, edges[1:]) if b > a)
 
     print(f"  Edge, most liquid tier:   {liquid.edge:+.3f}%  (spread {liquid.mean_spread:.1f} bps)")
-    print(f"  Edge, least liquid tier:  {illiquid.edge:+.3f}%  (spread {illiquid.mean_spread:.1f} bps)")
+    print(f"  Edge, least liquid tier:  {illiquid.edge:+.3f}%  "
+          f"(spread {illiquid.mean_spread:.1f} bps)")
 
     if rising_edge >= len(edges) - 2 and illiquid.edge > liquid.edge:
         print("\n  The edge DOES grow as liquidity falls, as overreaction predicts.")

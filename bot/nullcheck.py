@@ -375,7 +375,7 @@ def _print(cfg, a: Arm, b: Arm, m: Arm, edge: float, t: float, p: float,
     if blocks and blocks != (0.0, 0.0, 1.0):
         b_lo, b_hi, b_p = blocks
         width_ratio = (b_hi - b_lo) / (hi - lo) if hi > lo else 1.0
-        print(f"    BLOCK bootstrap (6h blocks, clustering respected):")
+        print("    BLOCK bootstrap (6h blocks, clustering respected):")
         print(f"      95% CI [{b_lo:+.4f}%, {b_hi:+.4f}%], p ~ {b_p:.3f}"
               f"   interval {width_ratio:.1f}x wider")
         if b_p >= 0.05 > boot_p:
